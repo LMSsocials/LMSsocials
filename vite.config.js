@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import boostingServices from './api/boosting-services.js'
 import bulkaccProducts from './api/bulkacc-products.js'
+import databaseHealth from './api/db-health.js'
 
 const apiMiddleware = (route, handler) => ({
   name: 'local-api-' + route.replaceAll('/', '-'),
@@ -27,6 +28,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   Object.assign(process.env, {
     BOOSTING_API_KEY: env.BOOSTING_API_KEY,
+    MONGODB_URI: env.MONGODB_URI,
     BULKACC_API_KEY: env.BULKACC_API_KEY,
     BULKACC_USD_TO_NGN_RATE: env.BULKACC_USD_TO_NGN_RATE,
     BULKACC_MARKUP_PERCENT: env.BULKACC_MARKUP_PERCENT,
@@ -36,6 +38,7 @@ export default defineConfig(({ mode }) => {
       react(),
       apiMiddleware('/api/boosting-services', boostingServices),
       apiMiddleware('/api/bulkacc-products', bulkaccProducts),
+      apiMiddleware('/api/db-health', databaseHealth),
     ],
   }
 })
