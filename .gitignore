@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.log
+
+# Local browser verification profiles and debug captures
+/.console-capture/
+/.direct-final/
+/.edge-*/
+/.fixed-react/
+/.mobile-*/
+/.stable-*/
+/*-dom.txt
+/*-error.txt
+/console-*.txt
+/direct-final.txt
+/edge-*.txt
+/stable-*.txt
+/blank-debug.png
+/site-preview.png
+/dashboard-reference.jpg

@@ -1,0 +1,30 @@
+{
+  "name": "boostlane",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4",
+    "@vitejs/plugin-react": "4.3.4",
+    "lucide-react": "0.468.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "typescript": "latest",
+    "vite": "6.0.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.17.0",
+    "@rollup/rollup-win32-x64-msvc": "4.63.0",
+    "eslint": "9.17.0",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "eslint-plugin-react-refresh": "0.4.16",
+    "globals": "15.14.0",
+    "jpeg-js": "0.4.4",
+    "pngjs": "7.0.0"
+  }
+}
