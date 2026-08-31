@@ -1,5 +1,6 @@
+'use client'
+
 import React, { useEffect, useState } from 'react'
-import { createRoot } from 'react-dom/client'
 import {
   ArrowRight,
   ArrowLeft,
@@ -12,21 +13,18 @@ import {
   EyeOff,
   Instagram,
   LockKeyhole,
-  LogOut,
   Mail,
   Menu,
   MessageCircle,
   ShieldCheck,
   Sparkles,
   Star,
-  PackageCheck,
   TrendingUp,
   UserRound,
   X,
   Zap,
 } from 'lucide-react'
-import './styles.css'
-import { supabase } from './lib/supabase'
+import { authClient as supabase } from './lib/auth-client'
 import Dashboard from './Dashboard'
 
 const services = [
@@ -62,24 +60,6 @@ const countries = [
   { flag: '🇨🇦', name: 'Canada', code: '+1' },
   { flag: '🇩🇪', name: 'Germany', code: '+49' },
 ]
-
-const dashboardCatalog = {
-  boosting: [
-    { title: 'Instagram Growth', meta: 'Followers', price: '$4.50', badge: 'POPULAR' },
-    { title: 'TikTok Momentum', meta: 'Views + likes', price: '$3.20', badge: 'FAST' },
-    { title: 'YouTube Reach', meta: 'Views', price: '$6.00', badge: 'STABLE' },
-  ],
-  logs: [
-    { title: 'Instagram Account', meta: 'Aged profile', price: '$18.00', badge: 'VERIFIED' },
-    { title: 'Facebook Account', meta: 'Marketplace ready', price: '$22.00', badge: 'LIMITED' },
-    { title: 'Gmail Account', meta: 'Fresh setup', price: '$3.50', badge: 'NEW' },
-  ],
-  numbers: [
-    { title: 'United States', meta: '+1 number', price: '$8.50', badge: 'AVAILABLE' },
-    { title: 'United Kingdom', meta: '+44 number', price: '$9.00', badge: 'AVAILABLE' },
-    { title: 'Canada', meta: '+1 number', price: '$8.00', badge: 'AVAILABLE' },
-  ],
-}
 
 function Logo() {
   return (
@@ -209,61 +189,6 @@ function AuthPage({ route }) {
   )
 }
 
-function AccountPage({ session }) {
-  const user = session.user
-  const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
-  const [activeService, setActiveService] = useState('boosting')
-  const activeItems = dashboardCatalog[activeService]
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.hash = '#login'
-  }
-
-  return (
-    <main className="account-page">
-      <nav className="account-nav shell">
-        <Logo />
-        <button onClick={handleSignOut}><LogOut size={16} /> Sign out</button>
-      </nav>
-      <section className="account-shell shell">
-        <div className="account-welcome">
-          <span>YOUR LMS ACCOUNT</span>
-          <h1>Welcome, {name}.</h1>
-          <p>Your account is active. Orders, balances, and service history will live here as we build the dashboard.</p>
-          <a href="#top">Browse services <ArrowRight size={17} /></a>
-        </div>
-        <div className="account-status">
-          <ShieldCheck />
-          <div><small>Signed in as</small><strong>{user.email}</strong><span><i /> Secure session active</span></div>
-        </div>
-        <div className="account-grid">
-          <button className={activeService === 'boosting' ? 'active' : ''} onClick={() => setActiveService('boosting')}><TrendingUp /><span>BOOSTING</span><h3>Social growth</h3><p>Followers, views and engagement packages.</p></button>
-          <button className={activeService === 'logs' ? 'active' : ''} onClick={() => setActiveService('logs')}><CircleUserRound /><span>LOGS</span><h3>Quality accounts</h3><p>Carefully sourced digital account options.</p></button>
-          <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => setActiveService('numbers')}><Globe2 /><span>NUMBERS</span><h3>Foreign numbers</h3><p>Private numbers across popular countries.</p></button>
-        </div>
-        <section className='catalog-panel'>
-          <div className='catalog-head'>
-            <div><span>LIVE CATALOG</span><h2>{activeService === 'numbers' ? 'Foreign numbers' : activeService === 'logs' ? 'Quality logs' : 'Boosting packages'}</h2></div>
-            <small><i /> Updated now</small>
-          </div>
-          <div className='catalog-list'>
-            {activeItems.map((item) => (
-              <article key={item.title}>
-                <div className='catalog-icon'>{activeService === 'boosting' ? <TrendingUp /> : activeService === 'logs' ? <CircleUserRound /> : <Globe2 />}</div>
-                <div className='catalog-copy'><span>{item.badge}</span><strong>{item.title}</strong><small>{item.meta}</small></div>
-                <div className='catalog-price'><small>From</small><strong>{item.price}</strong></div>
-                <button onClick={() => window.alert(item.title + ' ordering is coming next.')}>View offer <ArrowRight /></button>
-              </article>
-            ))}
-          </div>
-        </section>
-        <div className="account-empty"><PackageCheck /><div><strong>No orders yet</strong><p>Your first order will appear here once the catalogue is connected.</p></div></div>
-      </section>
-    </main>
-  )
-}
-
 function ResetPasswordPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -310,11 +235,12 @@ function ResetPasswordPage() {
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [toast, setToast] = useState('')
-  const [route, setRoute] = useState(window.location.hash)
+  const [route, setRoute] = useState('')
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
+    setRoute(window.location.hash)
     const handleRoute = () => setRoute(window.location.hash)
     window.addEventListener('hashchange', handleRoute)
     return () => window.removeEventListener('hashchange', handleRoute)
@@ -368,11 +294,11 @@ function App() {
 
   if (route === '#account' || ['boosting', 'numbers', 'logs'].includes(accountPage)) {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading your account…</span></main>
-    return session ? <Dashboard session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
+    return session ? <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
   }
 
   if (route === '#login' || route === '#signup') {
-    if (session) return <Dashboard session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} />
+    if (session) return <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} />
     return <AuthPage route={route} />
   }
 
@@ -558,4 +484,4 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')).render(<App />)
+export default App

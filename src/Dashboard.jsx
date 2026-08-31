@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import {
   ArrowRight, Bell, CircleUserRound, Clock3, Globe2, Grid2X2,
-  Headphones, LogOut, Menu, PackageCheck, ShoppingBag, TrendingUp, X,
+  Headphones, LogOut, Menu, PackageCheck, ReceiptText, TrendingUp, WalletCards, X,
 } from 'lucide-react'
 import LogsMarketplace from './LogsMarketplace'
 import BoostMarketplace from './BoostMarketplace'
+import NumbersMarketplace from './NumbersMarketplace'
 
 const catalog = {
   boosting: [
@@ -31,8 +32,8 @@ const serviceMeta = {
 }
 const serviceOrder = ['boosting', 'numbers', 'logs']
 
-export default function Dashboard({ session, onSignOut }) {
-  const page = window.location.hash.startsWith('#account/') ? window.location.hash.slice('#account/'.length) : 'overview'
+export default function Dashboard({ route, session, onSignOut }) {
+  const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const user = session.user
@@ -58,8 +59,14 @@ export default function Dashboard({ session, onSignOut }) {
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
             <button className={!activeService ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
-            <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ShoppingBag /> Orders</button>
-            <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Support</button>
+            <button onClick={() => window.alert('Wallet funding is the next feature being connected.')}><WalletCards /> Fund wallet</button>
+            <div className='dash-menu-group'>SERVICES</div>
+            <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
+            <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
+            <button onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
+            <div className='dash-menu-group'>ACCOUNT</div>
+            <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
+            <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
             <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
           </div>
           <div className='dash-actions'>
@@ -101,7 +108,7 @@ export default function Dashboard({ session, onSignOut }) {
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (

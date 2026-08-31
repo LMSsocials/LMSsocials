@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft, ArrowRight, Facebook, Ghost, Hash, Instagram, Link2, Linkedin,
+  ArrowRight, Facebook, Ghost, Hash, Instagram, Link2, Linkedin,
   LayoutGrid, LoaderCircle, MessageCircle, Music2, Pin, Search, Send, ShoppingBag, Twitch, Youtube,
 } from 'lucide-react'
 
@@ -134,15 +134,6 @@ export default function BoostMarketplace() {
             </div>
           </div>}
         </section>
-        {false && <div className='boost-service-list'>
-          {visibleServices.map((service) => (
-            <article key={service.id}>
-              <div><span>{service.category}</span><h3>{service.name}</h3><p>{service.type} · Min {service.min.toLocaleString()} · Max {service.max.toLocaleString()}</p></div>
-              <div className='boost-service-price'><small>per 1,000</small><strong>{money(service.pricePerThousand)}</strong></div>
-              <button onClick={() => window.alert(service.name + ' ordering is coming next.')}>Select <ArrowRight /></button>
-            </article>
-          ))}
-        </div>}
       </>}
     </section>
   )

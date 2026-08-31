@@ -21,3 +21,8 @@ dist/
 /blank-debug.png
 /site-preview.png
 /dashboard-reference.jpg
+
+.vercel
+.env*
+
+.next/
