@@ -72,6 +72,7 @@ function Logo() {
 
 function AuthPage({ route }) {
   const isSignup = route === '#signup'
+  const isAdminLogin = route === '#admin/login' || route === '#account/admin'
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState('')
@@ -106,9 +107,13 @@ function AuthPage({ route }) {
           setMessage('Account created. Check your email to confirm your address, then sign in.')
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        window.location.hash = '#account'
+        if (isAdminLogin && !data.session?.user?.isAdmin) {
+          await supabase.auth.signOut()
+          throw new Error('This account does not have administrator access.')
+        }
+        window.location.hash = isAdminLogin ? '#account/admin' : '#account'
       }
     } catch (error) {
       setMessage(error.message || 'Authentication failed. Please try again.')
@@ -155,9 +160,9 @@ function AuthPage({ route }) {
 
         <div className="auth-form-panel">
           <div className="auth-form-head">
-            <span>{isSignup ? 'JOIN LMS SOCIALS' : 'ACCOUNT ACCESS'}</span>
-            <h2>{isSignup ? 'Create your account' : 'Sign in to continue'}</h2>
-            <p>{isSignup ? 'Already have an account?' : 'New to LMS Socials?'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? 'Sign in' : 'Create account'}</button></p>
+            <span>{isSignup ? 'JOIN LMS SOCIALS' : isAdminLogin ? 'ADMINISTRATION' : 'ACCOUNT ACCESS'}</span>
+            <h2>{isSignup ? 'Create your account' : isAdminLogin ? 'Admin sign in' : 'Sign in to continue'}</h2>
+            <p>{isAdminLogin ? <>Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></> : <>{isSignup ? 'Already have an account?' : 'New to LMS Socials?'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? 'Sign in' : 'Create account'}</button></>}</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
@@ -182,6 +187,7 @@ function AuthPage({ route }) {
             <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Please wait…' : isSignup ? 'Create my account' : 'Sign in'} {!loading && <ArrowRight size={18} />}</button>
             {message && <div className="auth-message"><Check size={16} /> {message}</div>}
           </form>
+          {!isSignup && !isAdminLogin && <p className="auth-security"><ShieldCheck size={14} /> <a href="#admin/login">Administrator login</a></p>}
           <p className="auth-security"><ShieldCheck size={14} /> Secured account access • No hidden steps</p>
         </div>
       </section>
@@ -292,9 +298,21 @@ function App() {
 
   const accountPage = route.startsWith('#account/') ? route.slice('#account/'.length) : null
 
+  if (route === '#account/admin') {
+    if (!authReady) return <main className="auth-loading"><Logo /><span>Loading administrator access...</span></main>
+    if (!session?.user?.isAdmin) return <AuthPage route="#account/admin" />
+    return <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
+  }
+
   if (route === '#account' || ['boosting', 'numbers', 'logs'].includes(accountPage)) {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading your account…</span></main>
     return session ? <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
+  }
+
+  if (route === '#admin/login') {
+    if (!authReady) return <main className="auth-loading"><Logo /><span>Loading administrator access...</span></main>
+    if (session?.user?.isAdmin) return <Dashboard route="#account/admin" session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
+    return <AuthPage route={route} />
   }
 
   if (route === '#login' || route === '#signup') {

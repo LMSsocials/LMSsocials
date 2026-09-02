@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import {
-  ArrowRight, Bell, CircleUserRound, Clock3, Globe2, Grid2X2,
-  Headphones, LogOut, Menu, PackageCheck, ReceiptText, TrendingUp, WalletCards, X,
+  ArrowRight, Bell, CircleUserRound, Clock3, FileText, Globe2, Grid2X2,
+  Headphones, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, X,
 } from 'lucide-react'
 import LogsMarketplace from './LogsMarketplace'
 import BoostMarketplace from './BoostMarketplace'
 import NumbersMarketplace from './NumbersMarketplace'
+import AdminPanel from './AdminPanel'
 
 const catalog = {
   boosting: [
@@ -18,6 +19,11 @@ const catalog = {
     ['Facebook Account', 'Marketplace ready', '$22.00', 'Limited'],
     ['Gmail Account', 'Fresh setup', '$3.50', 'New'],
   ],
+  format: [
+    ['Document Formatting', 'Clean professional layouts', 'Custom', 'Available'],
+    ['Profile Formatting', 'Bio and page presentation', 'Custom', 'Available'],
+    ['Content Formatting', 'Social-ready content structure', 'Custom', 'Available'],
+  ],
   numbers: [
     ['United States', '+1 private number', '$8.50', 'Live'],
     ['United Kingdom', '+44 private number', '$9.00', 'Live'],
@@ -29,14 +35,17 @@ const serviceMeta = {
   boosting: { label: 'Boost account', icon: TrendingUp },
   logs: { label: 'Buy logs', icon: CircleUserRound },
   numbers: { label: 'Foreign number', icon: Globe2 },
+  format: { label: 'Buy format', icon: FileText },
+  admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
-const serviceOrder = ['boosting', 'numbers', 'logs']
+const serviceOrder = ['boosting', 'numbers', 'logs', 'format']
 
 export default function Dashboard({ route, session, onSignOut }) {
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const user = session.user
+  const [balance, setBalance] = useState(Number(user.balance || 0))
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
@@ -46,6 +55,12 @@ export default function Dashboard({ route, session, onSignOut }) {
     const closeMenu = (event) => event.key === 'Escape' && setMobileMenuOpen(false)
     window.addEventListener('keydown', closeMenu)
     return () => window.removeEventListener('keydown', closeMenu)
+  }, [])
+
+  useEffect(() => {
+    const updateBalance = (event) => setBalance(Number(event.detail || 0))
+    window.addEventListener('wallet-balance', updateBalance)
+    return () => window.removeEventListener('wallet-balance', updateBalance)
   }, [])
 
   return (
@@ -63,10 +78,12 @@ export default function Dashboard({ route, session, onSignOut }) {
             <div className='dash-menu-group'>SERVICES</div>
             <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
             <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
-            <button onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
+            <button className={activeService === 'logs' ? 'active' : ''} onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
+            <button className={activeService === 'format' ? 'active' : ''} onClick={() => { window.location.hash = '#account/format'; setMobileMenuOpen(false) }}><FileText /> Buy format</button>
             <div className='dash-menu-group'>ACCOUNT</div>
             <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
             <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
+            {user.isAdmin && <button className={activeService === 'admin' ? 'active' : ''} onClick={() => { window.location.hash = '#account/admin'; setMobileMenuOpen(false) }}><ShieldCheck /> Admin uploads</button>}
             <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
           </div>
           <div className='dash-actions'>
@@ -81,7 +98,7 @@ export default function Dashboard({ route, session, onSignOut }) {
         {!activeService ? <><header className='dash-head'>
           <div><h1>Welcome back, {firstName}.</h1><p>Choose a service or review your recent orders.</p></div>
           <div className='dash-head-stats'>
-            <div><small>Balance</small><strong>$0.00</strong></div>
+            <div><small>Balance</small><strong>{new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(balance)}</strong></div>
             <div><small>Orders</small><strong>0</strong></div>
             <div><small>Delivered</small><strong>0</strong></div>
           </div>
@@ -99,7 +116,7 @@ export default function Dashboard({ route, session, onSignOut }) {
 
         <section className={'dash-layout ' + (!activeService ? 'overview' : 'service-page')}>
           {!activeService && <aside className='dash-services' id='services'>
-            <div className='dash-section-title'><div><span>SERVICES</span><h2>Choose a lane</h2></div><small>03</small></div>
+            <div className='dash-section-title'><div><span>SERVICES</span><h2>Choose a lane</h2></div><small>04</small></div>
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
               const Icon = item.icon
@@ -108,7 +125,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (
