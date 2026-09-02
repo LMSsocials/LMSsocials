@@ -1,0 +1,22 @@
+node_modules/
+.next/
+.git/
+.vercel/
+dist/
+
+# Local browser verification profiles and screenshots
+.console-capture/
+.direct-final/
+.edge-*/
+.fixed-react/
+.mobile-*/
+.stable-*/
+*-dom.txt
+*-error.txt
+console-*.txt
+direct-final.txt
+edge-*.txt
+stable-*.txt
+blank-debug.png
+site-preview.png
+dashboard-reference.jpg
