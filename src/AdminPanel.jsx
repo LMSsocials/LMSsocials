@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { upload } from '@vercel/blob/client'
 import { CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, ShieldCheck, UploadCloud } from 'lucide-react'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -9,6 +10,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState([])
   const [state, setState] = useState('idle')
   const [message, setMessage] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const loadData = async () => {
     const [assetsResponse, vouchersResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers')])
@@ -63,11 +65,37 @@ export default function AdminPanel() {
   const uploadAsset = async (event) => {
     event.preventDefault()
     const form = event.currentTarget
-    setState('loading'); setMessage('')
-    const response = await fetch('/api/admin/assets', { method: 'POST', body: new FormData(form) })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) { setState('error'); setMessage(payload.message || 'Upload failed'); return }
-    form.reset(); setState('success'); setMessage('File uploaded privately as a draft.'); await loadData()
+    const formData = new FormData(form)
+    const file = formData.get('file')
+    setState('loading'); setMessage(''); setUploadProgress(0)
+    try {
+      if (!(file instanceof File) || !file.size) throw new Error('Choose a file to upload')
+      if (file.size > 100 * 1024 * 1024) throw new Error('Files must be 100 MB or smaller')
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+      const blob = await upload(`formats/${Date.now()}-${safeName}`, file, {
+        access: 'private',
+        handleUploadUrl: '/api/admin/assets/upload',
+        contentType: file.type || undefined,
+        multipart: file.size > 10 * 1024 * 1024,
+        onUploadProgress: ({ percentage }) => setUploadProgress(Math.round(percentage)),
+      })
+      const response = await fetch('/api/admin/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.get('title'), description: formData.get('description'),
+          category: formData.get('category'), price: formData.get('price'),
+          fileName: file.name, blobUrl: blob.url,
+        }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Upload failed')
+      form.reset(); setState('success'); setMessage('PDF published and available in the Format library.'); await loadData()
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Upload failed')
+    } finally {
+      setUploadProgress(0)
+    }
   }
 
   return <section className='admin-panel'>
@@ -101,13 +129,12 @@ export default function AdminPanel() {
       <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><CircleUserRound /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span><em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
     </> : <div className='admin-grid'>
       <form onSubmit={uploadAsset}>
-        <label>Product type<select name='category' required><option value='formats'>PDF / format</option></select></label>
+        <input name='category' type='hidden' value='formats' />
         <label>Title<input name='title' required maxLength='120' placeholder='Product title' /></label>
         <label>Description<textarea name='description' maxLength='500' placeholder='What the customer receives' /></label>
         <label>Price (NGN)<input name='price' type='number' min='8000' step='500' defaultValue='8000' required /></label>
-        <label className='admin-file'><UploadCloud /><span><strong>Choose file</strong><small>Image, PDF, TXT, DOC, CSV or spreadsheet · max 5 MB</small></span><input name='file' type='file' accept='.jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.csv,.xls,.xlsx,image/jpeg,image/png,image/webp,image/gif' required /></label>
-        <label className='admin-confirm'><input type='checkbox' required /><span>I confirm this upload contains legitimate, lawful material and no credentials or bypass instructions.</span></label>
-        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />}{state === 'loading' ? 'Uploading...' : 'Save draft'}</button>
+        <label className='admin-file'><UploadCloud /><span><strong>Choose file</strong><small>PDF file · max 100 MB</small></span><input name='file' type='file' accept='.pdf,application/pdf' required /></label>
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />}{state === 'loading' ? `Uploading${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Save draft'}</button>
       </form>
       <aside><div><span>UPLOADS</span><strong>{assets.length}</strong></div>{assets.length ? assets.map((asset) => <article key={asset._id}><FileText /><span><strong>{asset.title}</strong><small>{asset.fileName} · {money(asset.priceKobo)}</small></span><em>{asset.status}</em></article>) : <p>No uploads yet.</p>}</aside>
     </div>}

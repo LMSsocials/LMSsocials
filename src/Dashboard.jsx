@@ -6,6 +6,7 @@ import {
 import LogsMarketplace from './LogsMarketplace'
 import BoostMarketplace from './BoostMarketplace'
 import NumbersMarketplace from './NumbersMarketplace'
+import FormatMarketplace from './FormatMarketplace'
 import AdminPanel from './AdminPanel'
 
 const catalog = {
@@ -19,11 +20,7 @@ const catalog = {
     ['Facebook Account', 'Marketplace ready', '$22.00', 'Limited'],
     ['Gmail Account', 'Fresh setup', '$3.50', 'New'],
   ],
-  format: [
-    ['Document Formatting', 'Clean professional layouts', 'Custom', 'Available'],
-    ['Profile Formatting', 'Bio and page presentation', 'Custom', 'Available'],
-    ['Content Formatting', 'Social-ready content structure', 'Custom', 'Available'],
-  ],
+  format: [],
   numbers: [
     ['United States', '+1 private number', '$8.50', 'Live'],
     ['United Kingdom', '+44 private number', '$9.00', 'Live'],
@@ -125,7 +122,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (
