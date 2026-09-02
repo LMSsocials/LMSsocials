@@ -3,7 +3,7 @@ node_modules/
 .git/
 .vercel/
 dist/
-api/
+/api/
 
 # Local browser verification profiles and screenshots
 .console-capture/
