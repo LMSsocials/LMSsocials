@@ -1,4 +1,4 @@
-import handler from '../../../api/number-services.js'
+import handler from '../../../legacy-api/number-services.js'
 import { runLegacyHandler } from '../../../lib/legacy-handler'
 
 export async function GET(request) {

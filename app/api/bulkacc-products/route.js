@@ -1,4 +1,4 @@
-import handler from '../../../api/bulkacc-products.js'
+import handler from '../../../legacy-api/bulkacc-products.js'
 import { runLegacyHandler } from '../../../lib/legacy-handler'
 
 export async function GET(request) {
