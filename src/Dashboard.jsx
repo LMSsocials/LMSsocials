@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   ArrowRight, Bell, CircleUserRound, Clock3, FileText, Globe2, Grid2X2,
-  Headphones, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, X,
+  Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, X,
 } from 'lucide-react'
 import LogsMarketplace from './LogsMarketplace'
 import BoostMarketplace from './BoostMarketplace'
@@ -43,6 +43,11 @@ export default function Dashboard({ route, session, onSignOut }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const user = session.user
   const [balance, setBalance] = useState(Number(user.balance || 0))
+  const [fundOpen, setFundOpen] = useState(false)
+  const [fundAmount, setFundAmount] = useState('')
+  const [fundPhone, setFundPhone] = useState('')
+  const [fundState, setFundState] = useState('idle')
+  const [fundMessage, setFundMessage] = useState('')
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
@@ -60,6 +65,26 @@ export default function Dashboard({ route, session, onSignOut }) {
     return () => window.removeEventListener('wallet-balance', updateBalance)
   }, [])
 
+  useEffect(() => {
+    const funding = new URLSearchParams(window.location.search).get('funding')
+    if (funding) {
+      setFundMessage(funding === 'success' ? 'Payment verified. Your wallet has been credited.' : funding === 'pending' ? 'Payment is still pending. Please check again shortly.' : 'Payment could not be verified.')
+      setFundState(funding === 'success' ? 'success' : 'error')
+      window.history.replaceState(null, '', window.location.pathname + window.location.hash)
+    }
+  }, [])
+
+  async function startFunding(event) {
+    event.preventDefault()
+    setFundState('loading'); setFundMessage('')
+    try {
+      const response = await fetch('/api/payments/pocketfi/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: Number(fundAmount), phone: fundPhone }) })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to start payment')
+      window.location.assign(payload.paymentLink)
+    } catch (error) { setFundState('error'); setFundMessage(error.message) }
+  }
+
   return (
     <main className='dash-page'>
       <section className='dash-frame' id='dashboard'>
@@ -71,7 +96,7 @@ export default function Dashboard({ route, session, onSignOut }) {
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
             <button className={!activeService ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
-            <button onClick={() => window.alert('Wallet funding is the next feature being connected.')}><WalletCards /> Fund wallet</button>
+            <button onClick={() => { setFundOpen(true); setMobileMenuOpen(false) }}><WalletCards /> Fund wallet</button>
             <div className='dash-menu-group'>SERVICES</div>
             <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
             <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
@@ -91,6 +116,12 @@ export default function Dashboard({ route, session, onSignOut }) {
           </div>
         </nav>
         {mobileMenuOpen && <button className='dash-menu-backdrop' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)} />}
+        {fundOpen && <div className='fund-modal-backdrop' role='presentation' onMouseDown={() => fundState !== 'loading' && setFundOpen(false)}><section className='fund-modal' role='dialog' aria-modal='true' aria-labelledby='fund-wallet-title' onMouseDown={(event) => event.stopPropagation()}>
+          <header><span><WalletCards /></span><div><small>POCKETFI CHECKOUT</small><h2 id='fund-wallet-title'>Fund your wallet</h2><p>Enter an amount and continue to secure payment.</p></div><button type='button' aria-label='Close funding dialog' onClick={() => setFundOpen(false)}><X /></button></header>
+          <form onSubmit={startFunding}><label>Amount (NGN)<input type='number' min='1000' max='1000000' step='100' value={fundAmount} onChange={(event) => setFundAmount(event.target.value)} placeholder='10000' required /></label><label>Phone number<input type='tel' value={fundPhone} onChange={(event) => setFundPhone(event.target.value)} placeholder='08012345678' autoComplete='tel' required /></label>{fundMessage && <p className={fundState}>{fundMessage}</p>}<button disabled={fundState === 'loading'}>{fundState === 'loading' ? <LoaderCircle className='spin' /> : <WalletCards />}{fundState === 'loading' ? 'Opening checkout...' : 'Continue to PocketFi'}</button></form>
+          <footer>Wallet credit is applied only after PocketFi verifies a successful payment.</footer>
+        </section></div>}
+        {!fundOpen && fundMessage && <div className={'fund-toast ' + fundState}>{fundMessage}<button onClick={() => setFundMessage('')} aria-label='Dismiss'><X /></button></div>}
 
         {!activeService ? <><header className='dash-head'>
           <div><h1>Welcome back, {firstName}.</h1><p>Choose a service or review your recent orders.</p></div>
