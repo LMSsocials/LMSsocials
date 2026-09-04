@@ -44,6 +44,8 @@ function orderDate(value) {
   return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })
 }
 
+const fullNaira = (value) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(value || 0))
+
 export default function Dashboard({ route, session, onSignOut }) {
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
@@ -166,8 +168,8 @@ export default function Dashboard({ route, session, onSignOut }) {
 
         {!activeService ? <><header className='dash-head'>
           <div><h1>Welcome back, {firstName}.</h1><p>Choose a service or review your recent orders.</p></div>
-          <div className='dash-head-stats'>
-            <div><small>Balance</small><strong>{new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(balance)}</strong></div>
+          <div className={'dash-head-stats ' + (balance >= 1000000 ? 'balance-expanded' : '')}>
+            <div className='balance-stat'><small>Balance</small><strong>{fullNaira(balance)}</strong></div>
             <div><small>Orders</small><strong>{ordersState === 'loading' ? '—' : orders.length}</strong></div>
             <div><small>Delivered</small><strong>{ordersState === 'loading' ? '—' : deliveredOrders}</strong></div>
           </div>
