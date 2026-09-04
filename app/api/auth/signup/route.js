@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 import { getDatabase } from '../../../../lib/mongodb'
 import { createSessionToken, publicUser, sessionCookie } from '../../../../lib/auth'
+import { createPocketFiVirtualAccount } from '../../../../lib/pocketfi'
 
 export async function POST(request) {
   try {
@@ -12,8 +13,14 @@ export async function POST(request) {
     const database = await getDatabase()
     const users = database.collection('users')
     await users.createIndex({ email: 1 }, { unique: true })
-    const passwordHash = await bcrypt.hash(password, 12)
-    const user = { email: normalizedEmail, name: String(name || '').trim(), passwordHash, balance: 0, balanceKobo: 0, balanceCurrency: 'NGN', createdAt: new Date(), updatedAt: new Date() }
+    const cleanName = String(name || '').trim()
+    if (!cleanName) return NextResponse.json({ message: 'Enter your full name.' }, { status: 400 })
+    if (await users.findOne({ email: normalizedEmail }, { projection: { _id: 1 } })) return NextResponse.json({ message: 'An account with this email already exists.' }, { status: 409 })
+    const [passwordHash, pocketfiVirtualAccount] = await Promise.all([
+      bcrypt.hash(password, 12),
+      createPocketFiVirtualAccount({ name: cleanName, email: normalizedEmail }),
+    ])
+    const user = { email: normalizedEmail, name: cleanName, passwordHash, balance: 0, balanceKobo: 0, balanceCurrency: 'NGN', pocketfiVirtualAccount, createdAt: new Date(), updatedAt: new Date() }
     const result = await users.insertOne(user)
     user._id = result.insertedId
     const token = await createSessionToken(user)
