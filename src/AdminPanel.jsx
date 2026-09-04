@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, ShieldCheck, UploadCloud } from 'lucide-react'
+import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, UploadCloud, UserCheck, Users } from 'lucide-react'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 
@@ -8,16 +8,21 @@ export default function AdminPanel() {
   const [tab, setTab] = useState('vouchers')
   const [assets, setAssets] = useState([])
   const [products, setProducts] = useState([])
+  const [users, setUsers] = useState([])
+  const [userSearch, setUserSearch] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [state, setState] = useState('idle')
   const [message, setMessage] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
 
   const loadData = async () => {
-    const [assetsResponse, vouchersResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers')])
+    const [assetsResponse, vouchersResponse, usersResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users')])
     const assetsPayload = await assetsResponse.json().catch(() => ({}))
     const vouchersPayload = await vouchersResponse.json().catch(() => ({}))
+    const usersPayload = await usersResponse.json().catch(() => ({}))
     if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
     if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
+    if (usersResponse.ok) setUsers(usersPayload.users || [])
   }
 
   useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [])
@@ -98,11 +103,29 @@ export default function AdminPanel() {
     }
   }
 
+  const toggleBan = async (user) => {
+    const action = user.isBanned ? 'unban' : 'ban'
+    if (!window.confirm(`${action === 'ban' ? 'Ban' : 'Unban'} ${user.email}?`)) return
+    setState('loading'); setMessage('')
+    const response = await fetch('/api/admin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, isBanned: !user.isBanned }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) { setState('error'); setMessage(payload.message || `Unable to ${action} user`); return }
+    setUsers((current) => current.map((item) => item.id === user.id ? { ...item, isBanned: !user.isBanned } : item))
+    setState('success'); setMessage(`${user.email} has been ${action === 'ban' ? 'banned' : 'unbanned'}.`)
+  }
+
+  const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
+  const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
+
   return <section className='admin-panel'>
     <header><span><ShieldCheck /></span><div><small>ADMIN WORKSPACE</small><h2>Store inventory</h2><p>Create log listings, bulk-load unique delivery codes, and manage downloadable products.</p></div></header>
     <div className='admin-tabs'>
       <button className={tab === 'vouchers' ? 'active' : ''} onClick={() => { setTab('vouchers'); setMessage('') }}><CircleUserRound /> Logs</button>
       <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); setMessage('') }}><FileText /> Files & formats</button>
+      <button className={tab === 'users' ? 'active' : ''} onClick={() => { setTab('users'); setMessage('') }}><Users /> Users</button>
     </div>
     {message && <p className={'admin-message banner ' + state}>{message}</p>}
 
@@ -127,7 +150,7 @@ export default function AdminPanel() {
         </form>
       </div>
       <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><CircleUserRound /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span><em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
-    </> : <div className='admin-grid'>
+    </> : tab === 'files' ? <div className='admin-grid'>
       <form onSubmit={uploadAsset}>
         <input name='category' type='hidden' value='formats' />
         <label>Title<input name='title' required maxLength='120' placeholder='Product title' /></label>
@@ -137,6 +160,30 @@ export default function AdminPanel() {
         <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />}{state === 'loading' ? `Uploading${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Save draft'}</button>
       </form>
       <aside><div><span>UPLOADS</span><strong>{assets.length}</strong></div>{assets.length ? assets.map((asset) => <article key={asset._id}><FileText /><span><strong>{asset.title}</strong><small>{asset.fileName} · {money(asset.priceKobo)}</small></span><em>{asset.status}</em></article>) : <p>No uploads yet.</p>}</aside>
+    </div> : <div className='admin-users'>
+      <div className='admin-user-summary'>
+        <article><Users /><span><small>USERS</small><strong>{users.length}</strong></span></article>
+        <article><Ban /><span><small>BANNED</small><strong>{users.filter((user) => user.isBanned).length}</strong></span></article>
+        <article><Layers3 /><span><small>ORDERS</small><strong>{users.reduce((sum, user) => sum + user.orderCount, 0)}</strong></span></article>
+      </div>
+      <div className='admin-user-layout'>
+        <aside className='admin-user-list'>
+          <label className='admin-user-search'><Search /><input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder='Search name or email' /></label>
+          <div>{filteredUsers.map((user) => <button key={user.id} className={selectedUser?.id === user.id ? 'active' : ''} onClick={() => setSelectedUserId(user.id)}>
+            <CircleUserRound /><span><strong>{user.name || 'Unnamed user'}</strong><small>{user.email}</small></span><em className={user.isBanned ? 'banned' : ''}>{user.isBanned ? 'banned' : 'active'}</em>
+          </button>)}{!filteredUsers.length && <p>No users match your search.</p>}</div>
+        </aside>
+        <main className='admin-user-detail'>{selectedUser ? <>
+          <header><div><small>USER ACCOUNT</small><h3>{selectedUser.name || 'Unnamed user'}</h3><p>{selectedUser.email}</p></div><button className={selectedUser.isBanned ? 'unban' : 'ban'} disabled={selectedUser.isAdmin || state === 'loading'} onClick={() => toggleBan(selectedUser)}>{selectedUser.isBanned ? <UserCheck /> : <Ban />}{selectedUser.isBanned ? 'Unban user' : 'Ban user'}</button></header>
+          <div className='admin-user-meta'><span><small>Wallet</small><strong>{money(selectedUser.balanceKobo)}</strong></span><span><small>Total spent</small><strong>{money(selectedUser.totalSpentKobo)}</strong></span><span><small>Joined</small><strong>{selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : '—'}</strong></span></div>
+          <h4>Purchase history <span>{selectedUser.orderCount}</span></h4>
+          <div className='admin-orders'>{selectedUser.orders.length ? selectedUser.orders.map((order) => <article key={`${order.type}-${order.id}`}>
+            <div><span className='admin-order-type'>{order.type}</span><strong>{order.item}</strong><small>{order.createdAt ? new Date(order.createdAt).toLocaleString() : 'Date unavailable'}</small></div>
+            <div><strong>{money(order.amountKobo)}</strong><small>Status: {order.status}</small></div>
+            <dl><div><dt>Order ID</dt><dd>{order.id}</dd></div><div><dt>Request ID</dt><dd>{order.requestId || '—'}</dd></div>{order.apiOrderId && <div><dt>API order ID</dt><dd>{order.apiOrderId}</dd></div>}</dl>
+          </article>) : <p className='admin-empty-orders'>This user has not bought anything yet.</p>}</div>
+        </> : <p>Select a user to view their account and purchases.</p>}</main>
+      </div>
     </div>}
   </section>
 }

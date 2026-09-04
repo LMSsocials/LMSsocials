@@ -44,7 +44,7 @@ export async function POST(request) {
       asset = await database.collection('adminAssets').findOne({ _id: assetId, category: 'formats', status: 'live', contentType: 'application/pdf' }, { session })
       if (!asset) throw new Error('NOT_FOUND')
       const user = await database.collection('users').findOneAndUpdate(
-        { _id: userId, balanceKobo: { $gte: asset.priceKobo } },
+        { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: asset.priceKobo } },
         { $inc: { balanceKobo: -asset.priceKobo }, $set: { updatedAt: now, balanceCurrency: 'NGN' } },
         { returnDocument: 'after', session },
       )

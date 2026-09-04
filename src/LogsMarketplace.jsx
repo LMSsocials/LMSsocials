@@ -80,7 +80,7 @@ export default function LogsMarketplace() {
         {visibleProducts.map((product) => (
           <article key={product._id}>
             <div className='voucher-image'>{product.imageUrl ? <img src={product.imageUrl} alt='' /> : <CircleUserRound />}</div>
-            <div className='voucher-card-copy'><span>{product.brand}</span><h3>{product.title}</h3><p>{product.description || 'Digital product delivered after checkout.'}</p></div>
+            <div className='voucher-card-copy'><span>{product.brand}</span><h3>{product.title}</h3><p>{product.description || 'Digital product delivered after checkout.'}{product.quantity > 1 ? ` Includes ${product.quantity} accounts.` : ''}</p></div>
             <div className='voucher-stock'><PackageOpen /><span><strong>{product.stockCount}</strong><small>available</small></span></div>
             <footer><strong>{money(product.priceKobo)}</strong><button disabled={!product.stockCount || Boolean(buying)} onClick={() => purchase(product)}>{buying === product._id ? <LoaderCircle className='spin' /> : <ShoppingBag />}{product.stockCount ? 'Buy now' : 'Sold out'} <ArrowRight /></button></footer>
           </article>
@@ -92,7 +92,7 @@ export default function LogsMarketplace() {
         <div className='dash-section-title'><div><span>ORDER HISTORY</span><h2>Your purchased logs</h2></div><small>{orders.length}</small></div>
         {orders.length ? <div className='voucher-order-grid'>{orders.map((order) => <article key={order._id}>
           <div><CircleUserRound /><span><strong>{order.productTitle}</strong><small>{order.brand} · {new Date(order.createdAt).toLocaleDateString()}</small></span></div>
-          <label><span>YOUR ACCESS CODE</span><strong>{order.code || 'Contact support'}</strong><button onClick={() => copyCode(order.code)} disabled={!order.code} aria-label='Copy access code'><Copy /></button></label>
+          <label><span>{order.status === 'processing' ? 'DELIVERY STATUS' : 'YOUR ACCESS CODE'}</span><strong>{order.code || (order.status === 'processing' ? 'Processing — refresh shortly' : 'Contact support')}</strong><button onClick={() => copyCode(order.code)} disabled={!order.code} aria-label='Copy access code'><Copy /></button></label>
         </article>)}</div> : <div className='logs-empty'><ShoppingBag /><strong>No log orders yet</strong><span>Your purchased codes will appear here.</span></div>}
       </section>
     </section>

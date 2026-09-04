@@ -10,5 +10,5 @@ export async function GET() {
   if (!payload?.sub || !ObjectId.isValid(payload.sub)) return NextResponse.json({ session: null })
   const database = await getDatabase()
   const user = await database.collection('users').findOne({ _id: new ObjectId(payload.sub) })
-  return NextResponse.json({ session: user ? { user: publicUser(user) } : null })
+  return NextResponse.json({ session: user && !user.isBanned ? { user: publicUser(user) } : null })
 }

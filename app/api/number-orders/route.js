@@ -88,7 +88,7 @@ export async function POST(request) {
   try {
     await session.withTransaction(async () => {
       const user = await users.findOneAndUpdate(
-        { _id: userId, balanceKobo: { $gte: sellingPriceKobo } },
+        { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: sellingPriceKobo } },
         { $inc: { balanceKobo: -sellingPriceKobo }, $set: { updatedAt: new Date(), balanceCurrency: 'NGN' } },
         { returnDocument: 'after', session },
       )

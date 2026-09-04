@@ -36,6 +36,13 @@ const serviceMeta = {
   admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
 const serviceOrder = ['boosting', 'numbers', 'logs', 'format']
+const deliveredStatuses = new Set(['delivered', 'active', 'completed'])
+
+function orderDate(value) {
+  if (!value) return 'Recently'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })
+}
 
 export default function Dashboard({ route, session, onSignOut }) {
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
@@ -48,6 +55,8 @@ export default function Dashboard({ route, session, onSignOut }) {
   const [fundMessage, setFundMessage] = useState('')
   const [fundAccount, setFundAccount] = useState(null)
   const [accountCopied, setAccountCopied] = useState(false)
+  const [orders, setOrders] = useState([])
+  const [ordersState, setOrdersState] = useState('loading')
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
@@ -64,6 +73,30 @@ export default function Dashboard({ route, session, onSignOut }) {
     window.addEventListener('wallet-balance', updateBalance)
     return () => window.removeEventListener('wallet-balance', updateBalance)
   }, [])
+
+  useEffect(() => {
+    if (activeService) return
+    let cancelled = false
+    setOrdersState('loading')
+    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders'].map(async (url) => {
+      const response = await fetch(url, { cache: 'no-store' })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
+      return payload.orders || []
+    })).then(([logs, files, numbers]) => {
+      if (cancelled) return
+      const combined = [
+        ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
+        ...files.map((order) => ({ id: order._id, type: 'File', item: order.title || order.fileName || 'Download', status: order.status || 'delivered', createdAt: order.createdAt })),
+        ...numbers.map((order) => ({ id: order._id, type: 'Number', item: order.phoneNumber || [order.countryCode || order.countryId, order.serviceCode].filter(Boolean).join(' · ') || 'Virtual number', status: order.status || 'processing', createdAt: order.createdAt })),
+      ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      setOrders(combined); setOrdersState('success')
+    }).catch(() => { if (!cancelled) setOrdersState('error') })
+    return () => { cancelled = true }
+  }, [activeService])
+
+  const recentOrders = orders.slice(0, 3)
+  const deliveredOrders = orders.filter((order) => deliveredStatuses.has(String(order.status).toLowerCase())).length
 
   async function openFunding() {
     setFundOpen(true); setFundState('loading'); setFundMessage('')
@@ -135,14 +168,14 @@ export default function Dashboard({ route, session, onSignOut }) {
           <div><h1>Welcome back, {firstName}.</h1><p>Choose a service or review your recent orders.</p></div>
           <div className='dash-head-stats'>
             <div><small>Balance</small><strong>{new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(balance)}</strong></div>
-            <div><small>Orders</small><strong>0</strong></div>
-            <div><small>Delivered</small><strong>0</strong></div>
+            <div><small>Orders</small><strong>{ordersState === 'loading' ? '—' : orders.length}</strong></div>
+            <div><small>Delivered</small><strong>{ordersState === 'loading' ? '—' : deliveredOrders}</strong></div>
           </div>
         </header>
 
         <div className='dash-progress'>
           <span>Account ready</span><i /><i /><i className='muted' />
-          <small>Complete your first order to unlock activity insights</small>
+          <small>{orders.length ? `${deliveredOrders} of ${orders.length} orders completed` : 'Complete your first order to unlock activity insights'}</small>
         </div></> : <header className='dash-service-hero'>
           <button onClick={() => { window.location.hash = '#account' }}><ArrowRight /> Back to dashboard</button>
           <span>SERVICE MARKETPLACE</span>
@@ -175,14 +208,17 @@ export default function Dashboard({ route, session, onSignOut }) {
           </section> : null}
 
           {!activeService && <aside className='dash-activity' id='orders'>
-            <div className='activity-head'><span>RECENT ORDERS</span><strong>0/3</strong></div>
-            <div className='activity-ring'><PackageCheck /><span>No orders</span></div>
-            <h2>Your activity<br />starts here.</h2>
-            <p>Completed and active orders will appear in this space.</p>
+            <div className='activity-head'><span>RECENT ORDERS</span><strong>{Math.min(recentOrders.length, 3)}/3</strong></div>
+            <div className='activity-ring'><PackageCheck /><span>{ordersState === 'loading' ? 'Loading' : orders.length ? `${orders.length} order${orders.length === 1 ? '' : 's'}` : 'No orders'}</span></div>
+            <h2>{orders.length ? <>Your latest<br />activity.</> : <>Your activity<br />starts here.</>}</h2>
+            <p>{ordersState === 'error' ? 'We could not load your orders. Refresh to try again.' : orders.length ? 'Your latest completed and active purchases.' : 'Completed and active orders will appear in this space.'}</p>
             <div className='activity-list'>
-              <span><i><Clock3 /></i><b>Order placed</b><small>Waiting</small></span>
-              <span><i><TrendingUp /></i><b>In progress</b><small>Waiting</small></span>
-              <span><i><PackageCheck /></i><b>Delivered</b><small>Waiting</small></span>
+              {recentOrders.map((order) => <span key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><b>{order.type}: {order.item}</b><small>{order.status} · {orderDate(order.createdAt)}</small></span>)}
+              {!recentOrders.length && <>
+                <span><i><Clock3 /></i><b>Order placed</b><small>Waiting</small></span>
+                <span><i><TrendingUp /></i><b>In progress</b><small>Waiting</small></span>
+                <span><i><PackageCheck /></i><b>Delivered</b><small>Waiting</small></span>
+              </>}
             </div>
           </aside>}
         </section>
