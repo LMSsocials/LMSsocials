@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '../../../lib/mongodb'
 import { bulkCatalog, logCategory, sujanCatalog } from '../../../lib/log-providers'
+import { getSupplierPricing, supplierPricingVersion } from '../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
   const database = await getDatabase()
-  const pricingVersion = `bulk:${process.env.BULKACC_MARKUP_PERCENT ?? 30}|sujan:${process.env.SUJAN_MARKUP_PERCENT ?? 30}`
+  const pricing = await getSupplierPricing(database)
+  const pricingVersion = supplierPricingVersion(pricing)
   const [managed, cacheDocuments] = await Promise.all([
     database.collection('voucherProducts')
       .find({ isPublished: true }, { projection: { title: 1, brand: 1, category: 1, description: 1, imageUrl: 1, priceKobo: 1, stockCount: 1 } })
@@ -18,8 +20,8 @@ export async function GET() {
   const cache = new Map(cacheDocuments.map((document) => [document.source, document]))
   const fresh = (source) => cache.get(source)?.pricingVersion === pricingVersion && cache.get(source)?.updatedAt && Date.now() - new Date(cache.get(source).updatedAt).getTime() < 5 * 60 * 1000
   const [bulkResult, sujanResult] = await Promise.allSettled([
-    fresh('bulkacc') ? cache.get('bulkacc').items : bulkCatalog(),
-    fresh('sujan') ? cache.get('sujan').items : sujanCatalog(),
+    fresh('bulkacc') ? cache.get('bulkacc').items : bulkCatalog(pricing),
+    fresh('sujan') ? cache.get('sujan').items : sujanCatalog(pricing),
   ])
   const bulkItems = bulkResult.status === 'fulfilled' ? bulkResult.value : cache.get('bulkacc')?.items || []
   const sujanItems = sujanResult.status === 'fulfilled' ? sujanResult.value : cache.get('sujan')?.items || []

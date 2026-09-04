@@ -19,7 +19,7 @@ function vpnProviderLogo(title) {
   if (name.includes('nord')) return 'https://cdn.simpleicons.org/nordvpn/4687FF'
   if (name.includes('pia') || name.includes('private internet')) return 'https://cdn.simpleicons.org/privateinternetaccess/1A6EFF'
   if (name.includes('hma') || name.includes('hide my ass')) return 'https://hidemyass.com/favicon.ico'
-  if (name.includes('ip vanish') || name.includes('ipvanish')) return 'https://www.ipvanish.com/favicon.ico'
+  if (name.includes('ip vanish') || name.includes('ipvanish')) return 'https://www.ipvanish.com/wp-content/uploads/2021/09/ipvanish-logo.svg'
   return null
 }
 

@@ -5,6 +5,7 @@ import { getDatabase, getMongoClient } from '../../../lib/mongodb'
 import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
 import { decryptVoucherCode, encryptVoucherCode } from '../../../lib/voucher-crypto'
 import { bulkProduct, placeBulkOrder, placeSujanOrder, retrieveBulkOrder, sujanProduct } from '../../../lib/log-providers'
+import { getSupplierPricing } from '../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
 
@@ -131,11 +132,12 @@ export async function POST(request) {
 }
 
 async function purchaseSupplierProduct({ userId, source, sourceId, requestId }) {
+  const database = await getDatabase()
+  const pricing = await getSupplierPricing(database)
   let product
-  try { product = source === 'bulkacc' ? await bulkProduct(sourceId) : await sujanProduct(sourceId) }
+  try { product = source === 'bulkacc' ? await bulkProduct(sourceId, pricing) : await sujanProduct(sourceId, pricing) }
   catch (error) { return NextResponse.json({ message: error.message === 'OUT_OF_STOCK' ? 'This product is sold out' : 'Unable to verify supplier stock' }, { status: error.message === 'OUT_OF_STOCK' ? 409 : 502 }) }
 
-  const database = await getDatabase()
   const client = await getMongoClient()
   const users = database.collection('users')
   const orders = database.collection('voucherOrders')

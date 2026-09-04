@@ -1,4 +1,13 @@
 const PROVIDER_URL = 'https://justanotherpanel.com/api/v2'
+const LOW_PRICE_CUTOFF_NAIRA = 1000
+const LOW_PRICE_START_NAIRA = 1100
+
+function boostingSellingPrice(providerRateNaira, markup) {
+  const standardPrice = providerRateNaira * markup
+  if (standardPrice >= LOW_PRICE_CUTOFF_NAIRA) return standardPrice
+  const additionalMarkupPercent = (LOW_PRICE_START_NAIRA / standardPrice) * 100 + 10
+  return Math.ceil(standardPrice * (1 + additionalMarkupPercent / 100))
+}
 
 const platformFor = (value = '') => {
   const text = value.toLowerCase()
@@ -32,7 +41,7 @@ export default async function handler(request, response) {
     }
 
     const exchangeRate = 1341.395
-    const markup = 1.5
+    const markup = 2
     const services = payload.map((item) => {
       const category = String(item.category || 'Other')
       const name = String(item.name || 'Social media service')
@@ -44,11 +53,11 @@ export default async function handler(request, response) {
         type: String(item.type || 'Default'),
         min: Number(item.min) || 0,
         max: Number(item.max) || 0,
-        pricePerThousand: Number(item.rate || 0) * exchangeRate * markup,
+        pricePerThousand: boostingSellingPrice(Number(item.rate || 0) * exchangeRate, markup),
       }
     })
 
-    response.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=600')
+    response.setHeader('Cache-Control', 'no-store')
     return response.status(200).json({ services })
   } catch (error) {
     console.error('[boosting/services] request failed', { message: error.message })

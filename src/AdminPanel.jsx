@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, UploadCloud, UserCheck, Users } from 'lucide-react'
+import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, UploadCloud, UserCheck, Users } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -10,23 +10,26 @@ export default function AdminPanel() {
   const [assets, setAssets] = useState([])
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
+  const [pricing, setPricing] = useState({ bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
   const [userSearch, setUserSearch] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [state, setState] = useState('idle')
   const [message, setMessage] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
 
-  const loadData = async () => {
-    const [assetsResponse, vouchersResponse, usersResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users')])
+  const loadData = useCallback(async () => {
+    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing')])
     const assetsPayload = await assetsResponse.json().catch(() => ({}))
     const vouchersPayload = await vouchersResponse.json().catch(() => ({}))
     const usersPayload = await usersResponse.json().catch(() => ({}))
+    const pricingPayload = await pricingResponse.json().catch(() => ({}))
     if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
     if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
     if (usersResponse.ok) setUsers(usersPayload.users || [])
-  }
+    if (pricingResponse.ok) setPricing(pricingPayload.pricing || { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
+  }, [])
 
-  useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [])
+  useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [loadData])
 
   async function postVoucher(body, form) {
     setState('loading'); setMessage('')
@@ -118,6 +121,18 @@ export default function AdminPanel() {
     setState('success'); setMessage(`${user.email} has been ${action === 'ban' ? 'banned' : 'unbanned'}.`)
   }
 
+  const savePricing = async (event) => {
+    event.preventDefault()
+    setState('loading'); setMessage('')
+    const response = await fetch('/api/admin/pricing', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bulkaccMarkupPercent: Number(pricing.bulkaccMarkupPercent), sujanMarkupPercent: Number(pricing.sujanMarkupPercent) }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update pricing'); return }
+    setPricing(payload.pricing); setState('success'); setMessage('Supplier markups saved. New catalog prices are now active.')
+  }
+
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
@@ -125,6 +140,7 @@ export default function AdminPanel() {
     <header><span><ShieldCheck /></span><div><small>ADMIN WORKSPACE</small><h2>Store inventory</h2><p>Create log listings, bulk-load unique delivery codes, and manage downloadable products.</p></div></header>
     <div className='admin-tabs'>
       <button className={tab === 'vouchers' ? 'active' : ''} onClick={() => { setTab('vouchers'); setMessage('') }}><CircleUserRound /> Logs</button>
+      <button className={tab === 'pricing' ? 'active' : ''} onClick={() => { setTab('pricing'); setMessage('') }}><SlidersHorizontal /> Pricing</button>
       <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); setMessage('') }}><FileText /> Files & formats</button>
       <button className={tab === 'users' ? 'active' : ''} onClick={() => { setTab('users'); setMessage('') }}><Users /> Users</button>
     </div>
@@ -151,7 +167,14 @@ export default function AdminPanel() {
         </form>
       </div>
       <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><SocialIcon category={product.category} title={product.title} /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span><em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
-    </> : tab === 'files' ? <div className='admin-grid'>
+    </> : tab === 'pricing' ? <section className='admin-pricing'>
+      <header><SlidersHorizontal /><div><small>SUPPLIER PRICING</small><h3>Set your marketplace margin</h3><p>These percentages are added to the live supplier cost. Changes apply to catalog prices and checkout immediately.</p></div></header>
+      <form onSubmit={savePricing}>
+        <label><span>BulkAcc markup</span><div><input type='number' min='0' max='100' step='0.1' value={pricing.bulkaccMarkupPercent} onChange={(event) => setPricing((current) => ({ ...current, bulkaccMarkupPercent: event.target.value }))} required /><strong>%</strong></div><small>For social-account listings supplied by BulkAcc.</small></label>
+        <label><span>Sujan Department markup</span><div><input type='number' min='0' max='100' step='0.1' value={pricing.sujanMarkupPercent} onChange={(event) => setPricing((current) => ({ ...current, sujanMarkupPercent: event.target.value }))} required /><strong>%</strong></div><small>For VPN, proxy, and marketplace listings.</small></label>
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Save pricing</button>
+      </form>
+    </section> : tab === 'files' ? <div className='admin-grid'>
       <form onSubmit={uploadAsset}>
         <input name='category' type='hidden' value='formats' />
         <label>Title<input name='title' required maxLength='120' placeholder='Product title' /></label>
