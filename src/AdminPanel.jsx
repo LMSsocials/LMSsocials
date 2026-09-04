@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { upload } from '@vercel/blob/client'
 import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, UploadCloud, UserCheck, Users } from 'lucide-react'
+import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 
@@ -149,7 +150,7 @@ export default function AdminPanel() {
           <button disabled={state === 'loading' || !products.length}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />} Add codes to stock</button>
         </form>
       </div>
-      <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><CircleUserRound /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span><em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
+      <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><SocialIcon category={product.category} title={product.title} /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span><em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
     </> : tab === 'files' ? <div className='admin-grid'>
       <form onSubmit={uploadAsset}>
         <input name='category' type='hidden' value='formats' />
