@@ -669,6 +669,8 @@ html,body { overflow-x: clip; }
 .boost-order-summary > div { display: flex; flex-direction: column; gap: 3px; }.boost-order-summary small { color: #918b83; font-size: 9px; }.boost-order-summary strong { font-size: 22px; letter-spacing: -1px; }
 .boost-order-summary > button { min-height: 44px; display: flex; align-items: center; gap: 7px; padding: 0 18px; border: 0; border-radius: 11px; color: white; background: #ef5559; font-size: 10px; font-weight: 800; cursor: pointer; }
 .boost-order-summary > button svg { width: 15px; }.boost-order-summary > button:disabled { cursor: not-allowed; opacity: .45; }
+.boost-purchase-message { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; padding: 12px; border: 1px solid #dcebe0; border-radius: 11px; color: #266b3c; background: #f2fbf4; font-size: 10px; line-height: 1.45; }
+.boost-purchase-message svg { width: 16px; }.boost-purchase-message small { grid-column: 2; color: #5f7766; font-size: 9px; }.boost-purchase-message.error { border-color: #f2c7c7; color: #a62f35; background: #fff5f5; }.boost-purchase-message.review { border-color: #f1dfaf; color: #806019; background: #fff9e8; }
 .boost-service-list { display: grid; gap: 9px; }
 .boost-service-list article { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 16px; padding: 15px 16px; border: 1px solid #e9e2d9; border-radius: 15px; background: #fff; }
 .boost-service-list article > div:first-child { min-width: 0; }

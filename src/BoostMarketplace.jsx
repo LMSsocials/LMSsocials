@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowRight, Facebook, Ghost, Hash, Instagram, Link2, Linkedin,
+  AlertCircle, ArrowRight, CheckCircle2, Facebook, Ghost, Hash, Instagram, Link2, Linkedin,
   LayoutGrid, LoaderCircle, MessageCircle, Music2, Pin, Search, Send, ShoppingBag, Twitch, Youtube,
 } from 'lucide-react'
 
@@ -30,6 +30,10 @@ export default function BoostMarketplace() {
   const [serviceId, setServiceId] = useState('')
   const [target, setTarget] = useState('')
   const [quantity, setQuantity] = useState('')
+  const [purchaseState, setPurchaseState] = useState('idle')
+  const [purchaseMessage, setPurchaseMessage] = useState('')
+  const [submittedOrder, setSubmittedOrder] = useState(null)
+  const [purchaseRequestId, setPurchaseRequestId] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -71,12 +75,46 @@ export default function BoostMarketplace() {
     setServiceId('')
     setTarget('')
     setQuantity('')
+    setPurchaseState('idle')
+    setPurchaseMessage('')
+    setSubmittedOrder(null)
+    setPurchaseRequestId('')
   }
 
   const chooseService = (id) => {
     setServiceId(id)
     const service = services.find((item) => item.id === id)
     setQuantity(service ? String(service.min || 1) : '')
+    setPurchaseState('idle')
+    setPurchaseMessage('')
+    setSubmittedOrder(null)
+    setPurchaseRequestId('')
+  }
+
+  async function placeOrder() {
+    if (!selectedService || !target || Number(quantity) < selectedService.min || Number(quantity) > selectedService.max) return
+    setPurchaseState('submitting')
+    setPurchaseMessage('')
+    const requestId = purchaseRequestId || crypto.randomUUID()
+    setPurchaseRequestId(requestId)
+    try {
+      const response = await fetch('/api/boosting-orders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId: selectedService.id, target, quantity: Number(quantity), requestId }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setPurchaseRequestId('')
+        throw new Error(payload.message || 'Unable to place this boosting order')
+      }
+      setSubmittedOrder(payload.order || null)
+      setPurchaseState(payload.pendingReview ? 'review' : 'success')
+      setPurchaseMessage(payload.message || `Order submitted. Provider order ID: ${payload.order?.providerOrderId || 'being confirmed'}.`)
+      if (typeof payload.balance === 'number') window.dispatchEvent(new CustomEvent('wallet-balance', { detail: payload.balance }))
+    } catch (error) {
+      setPurchaseState('error')
+      setPurchaseMessage(error.message || 'Unable to place this boosting order')
+    }
   }
 
   return (
@@ -125,13 +163,19 @@ export default function BoostMarketplace() {
               <small>{selectedService.type} · Min {selectedService.min.toLocaleString()} · Max {selectedService.max.toLocaleString()}</small>
             </div>
             <div className='boost-order-inputs'>
-              <label><span><Link2 /> Target link</span><input type='url' value={target} onChange={(event) => setTarget(event.target.value)} placeholder='https://...' /></label>
-              <label><span><Hash /> Quantity</span><input type='number' min={selectedService.min} max={selectedService.max} value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
+              <label><span><Link2 /> Target link</span><input type='url' value={target} onChange={(event) => { setTarget(event.target.value); setPurchaseState('idle'); setPurchaseMessage(''); setSubmittedOrder(null); setPurchaseRequestId('') }} placeholder='https://...' /></label>
+              <label><span><Hash /> Quantity</span><input type='number' min={selectedService.min} max={selectedService.max} value={quantity} onChange={(event) => { setQuantity(event.target.value); setPurchaseState('idle'); setPurchaseMessage(''); setSubmittedOrder(null); setPurchaseRequestId('') }} /></label>
             </div>
             <div className='boost-order-summary'>
               <div><small>Estimated total</small><strong>{money(estimatedPrice)}</strong></div>
-              <button disabled={!target || Number(quantity) < selectedService.min || Number(quantity) > selectedService.max}><ShoppingBag /> Continue</button>
+              <button onClick={placeOrder} disabled={['submitting', 'success', 'review'].includes(purchaseState) || !target || Number(quantity) < selectedService.min || Number(quantity) > selectedService.max}>
+                {purchaseState === 'submitting' ? <LoaderCircle className='spin' /> : <ShoppingBag />}{purchaseState === 'submitting' ? 'Submitting...' : purchaseState === 'success' ? 'Order placed' : purchaseState === 'review' ? 'Awaiting confirmation' : 'Continue'}
+              </button>
             </div>
+            {purchaseState !== 'idle' && <div className={'boost-purchase-message ' + purchaseState} role='status'>
+              {purchaseState === 'error' ? <AlertCircle /> : <CheckCircle2 />}<span>{purchaseMessage}</span>
+              {submittedOrder?.providerOrderId && <small>API order ID: {submittedOrder.providerOrderId}</small>}
+            </div>}
           </div>}
         </section>
       </>}
