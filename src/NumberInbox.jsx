@@ -97,7 +97,7 @@ export default function NumberInbox({ refreshKey }) {
         {order.status === 'submission_review' && <p>Your reservation is awaiting confirmation. Contact support using the reference under Order details.</p>}
         {order.canCancel && <div className='number-cancel-row'><p>{seconds > 0 ? `Cancellation available in ${countdown}.` : 'No SMS yet? Cancel for a full wallet refund once cancellation is confirmed.'}</p><button type='button' disabled={seconds > 0 || Boolean(busyId)} onClick={() => cancelOrder(order)}>{busyId === order._id ? <><LoaderCircle className='spin' /> Checking…</> : 'Cancel & refund'}</button></div>}
         {order.status === 'refunded' && <p className='number-refund-note'>{money(order.sellingPriceKobo)} returned to your wallet.</p>}
-        <details><summary>Order details</summary><dl><div><dt>Order reference</dt><dd>{order._id}</dd></div>{order.activationId && <div><dt>Support activation ID</dt><dd>{order.activationId}</dd></div>}<div><dt>Paid</dt><dd>{money(order.sellingPriceKobo)}</dd></div><div><dt>Purchased</dt><dd>{new Date(order.createdAt).toLocaleString()}</dd></div></dl></details>
+        <details><summary>Order details</summary><dl><div><dt>Order reference</dt><dd>{order._id}</dd></div><div><dt>Paid</dt><dd>{money(order.sellingPriceKobo)}</dd></div><div><dt>Purchased</dt><dd>{new Date(order.createdAt).toLocaleString()}</dd></div></dl></details>
       </article>
     })}</div>
     {past.length > 10 && <button className='number-history-toggle' type='button' onClick={() => setShowAll((value) => !value)}>{showAll ? 'Show fewer past orders' : 'Show all recent orders'}</button>}

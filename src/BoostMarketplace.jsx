@@ -34,7 +34,6 @@ export default function BoostMarketplace() {
   const [quantity, setQuantity] = useState('')
   const [purchaseState, setPurchaseState] = useState('idle')
   const [purchaseMessage, setPurchaseMessage] = useState('')
-  const [submittedOrder, setSubmittedOrder] = useState(null)
   const [purchaseRequestId, setPurchaseRequestId] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [pendingPurchase, setPendingPurchase] = useState(null)
@@ -85,7 +84,6 @@ export default function BoostMarketplace() {
     setQuantity('')
     setPurchaseState('idle')
     setPurchaseMessage('')
-    setSubmittedOrder(null)
     setPurchaseRequestId('')
     setFieldErrors({})
   }
@@ -97,7 +95,6 @@ export default function BoostMarketplace() {
     setQuantity(service ? String(service.min || 1) : '')
     setPurchaseState('idle')
     setPurchaseMessage('')
-    setSubmittedOrder(null)
     setPurchaseRequestId('')
     setFieldErrors({})
   }
@@ -105,7 +102,7 @@ export default function BoostMarketplace() {
   function editOrder(change) {
     if (formLocked || purchaseBusy.current) return
     change()
-    setPurchaseState('idle'); setPurchaseMessage(''); setSubmittedOrder(null); setPurchaseRequestId(''); setFieldErrors({})
+    setPurchaseState('idle'); setPurchaseMessage(''); setPurchaseRequestId(''); setFieldErrors({})
   }
 
   async function placeOrder() {
@@ -141,7 +138,6 @@ export default function BoostMarketplace() {
       }
       if (!payload.order) throw new Error('We could not confirm the response. Use Check order to check this same purchase.')
       setPendingPurchase(null)
-      setSubmittedOrder(payload.order || null)
       setPurchaseState(payload.order.status === 'refunded' ? 'error' : payload.pendingReview ? 'review' : 'success')
       setPurchaseMessage(payload.message || 'Order submitted successfully. You can follow its status on your dashboard.')
       if (payload.order.status === 'refunded') setPurchaseRequestId('')
@@ -209,7 +205,6 @@ export default function BoostMarketplace() {
             {pendingPurchase && purchaseState === 'error' && <p className='boost-field-help'>Your purchase may still be processing. Use Check order to check this same request before starting another order.</p>}
             {purchaseState !== 'idle' && <div className={'boost-purchase-message ' + purchaseState} role='status'>
               {purchaseState === 'error' ? <AlertCircle /> : <CheckCircle2 />}<span>{purchaseMessage}</span>
-              {submittedOrder?.providerOrderId && <small>API order ID: {submittedOrder.providerOrderId}</small>}
             </div>}
           </div>}
         </section>
