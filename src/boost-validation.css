@@ -1,0 +1,5 @@
+.boost-order-inputs .boost-field-help, .boost-field-help { color: #716960; font-size: 11px; line-height: 1.6; }
+.boost-order-inputs .boost-field-error { color: #ad3039; font-size: 11px; line-height: 1.6; }
+.boost-order-inputs input[aria-invalid='true'] { border-color: #c33e48; background: #fff7f7; }
+.boost-order-inputs input:disabled, .boost-platform-grid button:disabled { opacity: .6; cursor: not-allowed; }
+.boost-order-inputs label { align-content: start; min-width: 0; }

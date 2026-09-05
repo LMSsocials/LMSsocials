@@ -10,6 +10,7 @@ import {
   placeBoostingOrder,
 } from '../../../lib/boosting-provider'
 import { boostingOrderPriceKobo } from '../../../lib/boosting-pricing'
+import { validateBoostingInput } from '../../../lib/boosting-validation.js'
 
 export const runtime = 'nodejs'
 
@@ -27,14 +28,6 @@ function publicOrder(order) {
     providerOrderId: order.providerOrderId || null, remains: order.remains ?? null,
     startCount: order.startCount ?? null, createdAt: order.createdAt, updatedAt: order.updatedAt,
   }
-}
-
-function validTarget(value) {
-  if (typeof value !== 'string' || value.trim().length > 500) return null
-  try {
-    const target = new URL(value.trim())
-    return ['http:', 'https:'].includes(target.protocol) ? target.toString() : null
-  } catch { return null }
 }
 
 async function refundReservedOrder({ client, users, orders, orderId, userId, priceKobo, reason }) {
@@ -82,37 +75,42 @@ export async function POST(request) {
   if (!userId) return NextResponse.json({ message: 'Authentication required' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
-  const serviceId = String(body.serviceId || '')
-  const requestId = String(body.requestId || '')
-  const target = validTarget(body.target)
-  const quantity = Number(body.quantity)
-  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(serviceId) || !/^[a-zA-Z0-9-]{16,80}$/.test(requestId) || !target || !Number.isSafeInteger(quantity) || quantity <= 0) {
-    return NextResponse.json({ message: 'Please choose a service, valid target link, and whole quantity' }, { status: 400 })
+  const validation = validateBoostingInput(body)
+  if (!validation.valid) {
+    return NextResponse.json({ message: Object.values(validation.fieldErrors)[0], fieldErrors: validation.fieldErrors, retrySafe: true }, { status: 400 })
   }
+  const { serviceId, requestId, target, quantity } = validation.value
 
   const database = await getDatabase()
   const users = database.collection('users')
+  const account = await users.findOne({ _id: userId }, { projection: { balanceKobo: 1, isBanned: 1 } })
+  if (!account || account.isBanned) return NextResponse.json({ message: 'This account cannot place orders.', retrySafe: true }, { status: 403 })
   const orders = database.collection('boostingOrders')
   await orders.createIndex({ requestId: 1 }, { unique: true })
 
   const existing = await orders.findOne({ requestId, userId })
   if (existing) {
-    return NextResponse.json({ message: 'This purchase request has already been used', order: publicOrder(existing), balance: Number(existing.balanceAfterKobo || 0) / 100 }, { status: 409 })
+    const pendingReview = ['supplier_reserved', 'submission_review'].includes(existing.status)
+    return NextResponse.json({
+      message: existing.status === 'refunded' ? 'This order was refunded. You can start a new order.' : pendingReview ? 'This order is awaiting confirmation. Please do not submit another purchase.' : 'Your order has already been submitted.',
+      order: publicOrder(existing), balance: Number(account.balanceKobo || 0) / 100, pendingReview,
+    })
   }
 
   let service
   try { service = await getCurrentBoostingService(serviceId) }
   catch (error) {
     const message = error instanceof BoostingProviderError && error.definitive ? error.message : 'Unable to verify the live service price'
-    return NextResponse.json({ message }, { status: error instanceof BoostingProviderError && error.definitive ? 409 : 502 })
+    return NextResponse.json({ message, retrySafe: true }, { status: error instanceof BoostingProviderError && error.definitive ? 409 : 502 })
   }
-  if (quantity < service.min || quantity > service.max) {
-    return NextResponse.json({ message: `Quantity must be between ${service.min.toLocaleString()} and ${service.max.toLocaleString()}` }, { status: 400 })
+  const serviceValidation = validateBoostingInput(body, service)
+  if (!serviceValidation.valid) {
+    return NextResponse.json({ message: Object.values(serviceValidation.fieldErrors)[0], fieldErrors: serviceValidation.fieldErrors, retrySafe: true }, { status: 400 })
   }
 
   let priceKobo
   try { priceKobo = boostingOrderPriceKobo(service.providerRateUsd, quantity) }
-  catch { return NextResponse.json({ message: 'Unable to calculate the live order price' }, { status: 409 }) }
+  catch { return NextResponse.json({ message: 'Unable to calculate the live order price', retrySafe: true }, { status: 409 }) }
 
   const client = await getMongoClient()
   const orderId = new ObjectId()
@@ -136,7 +134,7 @@ export async function POST(request) {
       }, { session: debitSession })
     })
   } catch (error) {
-    if (error.message === 'INSUFFICIENT_BALANCE') return NextResponse.json({ message: 'Insufficient wallet balance', required: priceKobo / 100 }, { status: 402 })
+    if (error.message === 'INSUFFICIENT_BALANCE') return NextResponse.json({ message: 'Insufficient wallet balance', required: priceKobo / 100, retrySafe: true }, { status: 402 })
     if (error.code === 11000) return NextResponse.json({ message: 'This purchase request is already being processed' }, { status: 409 })
     console.error('[boosting/purchase] wallet reservation failed', { message: error.message })
     return NextResponse.json({ message: 'Unable to reserve wallet funds' }, { status: 500 })
@@ -148,7 +146,8 @@ export async function POST(request) {
   } catch (error) {
     if (error instanceof BoostingProviderError && error.definitive) {
       await refundReservedOrder({ client, users, orders, orderId, userId, priceKobo, reason: error.message })
-      return NextResponse.json({ message: 'The provider could not accept this order. Your wallet has been refunded.' }, { status: 409 })
+      const refundedUser = await users.findOne({ _id: userId }, { projection: { balanceKobo: 1 } })
+      return NextResponse.json({ message: 'The provider could not accept this order. Your wallet has been refunded.', retrySafe: true, balance: Number(refundedUser?.balanceKobo || 0) / 100 }, { status: 409 })
     }
 
     // A timeout can happen after a provider accepts the order. Keep the debit
@@ -168,4 +167,3 @@ export async function POST(request) {
   const completed = await orders.findOne({ _id: orderId })
   return NextResponse.json({ order: publicOrder(completed), balance: balanceAfterKobo / 100 }, { status: 201 })
 }
-
