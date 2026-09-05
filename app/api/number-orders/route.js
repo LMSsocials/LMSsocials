@@ -3,10 +3,12 @@ import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { getDatabase, getMongoClient } from '../../../lib/mongodb'
 import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
-import { koboToNaira, numberSellingPriceKobo } from '../../../lib/number-pricing'
+import { verifyNumberQuote, checkQuotedSupplier, reserveQuotedNumber } from '../../../lib/number-provider.js'
+import { publicNumberOrder, syncNumberOrder } from '../../../lib/number-order-lifecycle.js'
 
-const PROVIDER_URL = 'https://smsbower.page/stubs/handler_api.php'
-const VALID_SERVERS = new Set(['1', '2', '3'])
+export const runtime = 'nodejs'
+export const maxDuration = 60
+const json = (body, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
 
 async function authenticatedUserId() {
   const store = await cookies()
@@ -14,137 +16,135 @@ async function authenticatedUserId() {
   return payload?.sub && ObjectId.isValid(payload.sub) ? new ObjectId(payload.sub) : null
 }
 
-async function providerRequest(action, parameters = {}) {
-  const apiKey = process.env.SMSBOWER_API_KEY
-  if (!apiKey) throw new Error('Number provider is not configured')
-  const url = new URL(PROVIDER_URL)
-  url.searchParams.set('api_key', apiKey)
-  url.searchParams.set('action', action)
-  Object.entries(parameters).forEach(([key, value]) => url.searchParams.set(key, String(value)))
-  const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000), cache: 'no-store' })
-  const text = await response.text()
-  if (!response.ok) throw new Error('Provider request failed')
-  return text
-}
-
-async function currentProviderPrice(countryId, serviceCode) {
-  const text = await providerRequest('getPrices', { country: countryId, service: serviceCode })
-  let payload
-  try { payload = JSON.parse(text) } catch { throw new Error('Provider price is unavailable') }
-  const price = Number(payload?.[countryId]?.[serviceCode]?.cost)
-  if (!Number.isFinite(price) || price <= 0) throw new Error('Selected number is unavailable')
-  return price
-}
-
-async function reserveNumber(countryId, serviceCode, maxPrice) {
-  const text = await providerRequest('getNumberV2', { country: countryId, service: serviceCode, maxPrice })
-  let payload
-  try { payload = JSON.parse(text) } catch { throw new Error(text || 'Provider purchase failed') }
-  if (!payload?.activationId || !payload?.phoneNumber) throw new Error(payload?.message || payload?.error || 'No number is currently available')
-  return payload
-}
-
-export async function GET() {
+export async function GET(request) {
   const userId = await authenticatedUserId()
-  if (!userId) return NextResponse.json({ message: 'Authentication required' }, { status: 401 })
+  if (!userId) return json({ message: 'Authentication required' }, 401)
   const database = await getDatabase()
-  const orders = await database.collection('numberOrders').find({ userId }).sort({ createdAt: -1 }).limit(50).toArray()
-  return NextResponse.json({ orders: orders.map((order) => ({ ...order, _id: String(order._id), userId: undefined })) })
+  const client = await getMongoClient()
+  const users = database.collection('users')
+  const user = await users.findOne({ _id: userId }, { projection: { balanceKobo: 1, isBanned: 1 } })
+  if (!user || user.isBanned) return json({ message: 'Account unavailable' }, 403)
+  const collection = database.collection('numberOrders')
+  const id = new URL(request.url).searchParams.get('id')
+  if (id && !ObjectId.isValid(id)) return json({ message: 'Invalid order' }, 400)
+  const filter = id ? { userId, _id: new ObjectId(id) } : { userId }
+  const active = await collection.find({ ...filter, status: { $in: ['active', 'cancel_pending', 'cancel_confirmed'] } }).sort({ nextStatusCheckAt: 1, createdAt: 1 }).limit(6).toArray()
+  await Promise.all(active.map((order) => syncNumberOrder({ database, client, orderId: order._id, userId })))
+  const [live, history] = await Promise.all([
+    collection.find({ ...filter, status: { $in: ['active', 'cancel_pending', 'cancel_confirmed', 'debit_reserved', 'submission_review'] } }).sort({ createdAt: -1 }).limit(100).toArray(),
+    collection.find(filter).sort({ createdAt: -1 }).limit(50).toArray(),
+  ])
+  const orders = [...new Map([...live, ...history].map((order) => [String(order._id), order])).values()]
+  const balanceUser = await users.findOne({ _id: userId }, { projection: { balanceKobo: 1 } })
+  return json({ orders: orders.map(publicNumberOrder), balance: Number(balanceUser?.balanceKobo || 0) / 100 })
+}
+
+export async function PATCH(request) {
+  const userId = await authenticatedUserId()
+  if (!userId) return json({ message: 'Authentication required' }, 401)
+  const body = await request.json().catch(() => ({}))
+  if (body.action !== 'cancel' || !ObjectId.isValid(body.orderId)) return json({ message: 'Invalid cancellation request' }, 400)
+  const database = await getDatabase()
+  const client = await getMongoClient()
+  const user = await database.collection('users').findOne({ _id: userId }, { projection: { isBanned: 1 } })
+  if (!user || user.isBanned) return json({ message: 'Account unavailable' }, 403)
+  const orderId = new ObjectId(body.orderId)
+  const orders = database.collection('numberOrders')
+  const order = await orders.findOne({ _id: orderId, userId })
+  if (!order) return json({ message: 'Order not found' }, 404)
+  if (order.status === 'completed' || order.smsCode) return json({ message: 'An SMS has already arrived. This order cannot be refunded.', order: publicNumberOrder(order) }, 409)
+  const result = await syncNumberOrder({ database, client, userId, orderId, cancel: true })
+  const updated = await orders.findOne({ _id: orderId, userId })
+  const balance = await database.collection('users').findOne({ _id: userId }, { projection: { balanceKobo: 1 } })
+  return json({ order: publicNumberOrder(updated), balance: Number(balance.balanceKobo || 0) / 100,
+    message: updated.status === 'refunded' ? 'Number canceled. Your full payment has been returned to your wallet.'
+      : result.message || (result.busy ? 'This order is being checked. Please try again shortly.' : 'Cancellation is being confirmed.'),
+  })
 }
 
 export async function POST(request) {
   const userId = await authenticatedUserId()
-  if (!userId) return NextResponse.json({ message: 'Authentication required' }, { status: 401 })
-
+  if (!userId) return json({ message: 'Authentication required' }, 401)
   const body = await request.json().catch(() => ({}))
-  const serverId = String(body.serverId || '')
-  const countryId = String(body.countryId || '')
-  const serviceCode = String(body.serviceCode || '')
   const requestId = String(body.requestId || '')
-
-  if (!VALID_SERVERS.has(serverId) || !countryId || !serviceCode || !/^[a-zA-Z0-9-]{16,80}$/.test(requestId)) {
-    return NextResponse.json({ message: 'Invalid purchase request' }, { status: 400 })
-  }
-
+  if (!/^[a-zA-Z0-9-]{16,80}$/.test(requestId)) return json({ message: 'Invalid purchase request', retrySafe: true }, 400)
   const database = await getDatabase()
   const client = await getMongoClient()
   const users = database.collection('users')
   const orders = database.collection('numberOrders')
+  const account = await users.findOne({ _id: userId }, { projection: { isBanned: 1, balanceKobo: 1 } })
+  if (!account || account.isBanned) return json({ message: 'Account unavailable', retrySafe: true }, 403)
   await orders.createIndex({ requestId: 1 }, { unique: true })
-
   const existing = await orders.findOne({ requestId, userId })
-  if (existing?.status === 'active') return NextResponse.json({ order: existing, balance: existing.balanceAfterKobo / 100 })
-  if (existing) return NextResponse.json({ message: 'This purchase is already being processed' }, { status: 409 })
+  if (existing) return json({ order: publicNumberOrder(existing), balance: Number(account.balanceKobo || 0) / 100,
+    message: ['debit_reserved', 'submission_review'].includes(existing.status) ? 'This purchase is saved and awaiting confirmation. Please do not buy it again.' : '',
+  })
 
-  let providerPriceUsd
-  try { providerPriceUsd = await currentProviderPrice(countryId, serviceCode) }
-  catch (error) { return NextResponse.json({ message: error.message }, { status: 409 }) }
-
-  const sellingPriceKobo = numberSellingPriceKobo(providerPriceUsd, serverId)
+  let quote
+  try { quote = await verifyNumberQuote(body.quoteToken, userId) }
+  catch { return json({ message: 'Please refresh the price before purchasing.', retrySafe: true, refreshQuote: true }, 409) }
+  try { await checkQuotedSupplier(quote) }
+  catch { return json({ message: 'This supplier’s price or availability changed. Please review a fresh price.', retrySafe: true, refreshQuote: true }, 409) }
+  const priceKobo = quote.sellingPriceKobo
   const orderId = new ObjectId()
+  const now = new Date()
   const session = client.startSession()
-  let balanceAfterKobo
-
   try {
     await session.withTransaction(async () => {
       const user = await users.findOneAndUpdate(
-        { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: sellingPriceKobo } },
-        { $inc: { balanceKobo: -sellingPriceKobo }, $set: { updatedAt: new Date(), balanceCurrency: 'NGN' } },
-        { returnDocument: 'after', session },
+        { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: priceKobo } },
+        { $inc: { balanceKobo: -priceKobo }, $set: { updatedAt: now } }, { returnDocument: 'after', session },
       )
       if (!user) throw new Error('INSUFFICIENT_BALANCE')
-      balanceAfterKobo = user.balanceKobo
       await orders.insertOne({
-        _id: orderId, requestId, userId, serverId, countryId, serviceCode,
-        providerPriceUsd, sellingPriceKobo, balanceAfterKobo,
-        status: 'debit_reserved', createdAt: new Date(), updatedAt: new Date(),
+        _id: orderId, requestId, userId, serverId: quote.serverId, countryId: quote.countryId, serviceCode: quote.serviceCode,
+        countryName: quote.countryName, serviceName: quote.serviceName, providerId: quote.providerId, quality: quote.quality,
+        providerPriceUsd: quote.providerPriceUsd, sellingPriceKobo: priceKobo, balanceAfterKobo: user.balanceKobo,
+        status: 'debit_reserved', createdAt: now, updatedAt: now,
       }, { session })
     })
   } catch (error) {
-    if (error.message === 'INSUFFICIENT_BALANCE') {
-      return NextResponse.json({ message: 'Insufficient wallet balance', required: koboToNaira(sellingPriceKobo) }, { status: 402 })
-    }
-    if (error.code === 11000) return NextResponse.json({ message: 'This purchase is already being processed' }, { status: 409 })
-    console.error('[numbers/purchase] debit failed', { message: error.message })
-    return NextResponse.json({ message: 'Unable to reserve wallet funds' }, { status: 500 })
-  } finally {
-    await session.endSession()
-  }
+    if (error.message === 'INSUFFICIENT_BALANCE') return json({ message: 'Insufficient wallet balance', required: priceKobo / 100, retrySafe: true }, 402)
+    if (error.code === 11000) return json({ message: 'This purchase is already processing. Check your numbers below.' }, 409)
+    return json({ message: 'Unable to confirm wallet reservation. Retry to check this same request.' }, 500)
+  } finally { await session.endSession() }
 
   let activation
-  try {
-    activation = await reserveNumber(countryId, serviceCode, providerPriceUsd)
-  } catch (error) {
-    const refundSession = client.startSession()
-    try {
-      await refundSession.withTransaction(async () => {
-        const result = await orders.updateOne(
-          { _id: orderId, status: 'debit_reserved' },
-          { $set: { status: 'refunded', failureReason: error.message, updatedAt: new Date(), refundedAt: new Date() } },
-          { session: refundSession },
-        )
-        if (result.modifiedCount === 1) {
-          await users.updateOne({ _id: userId }, { $inc: { balanceKobo: sellingPriceKobo }, $set: { updatedAt: new Date() } }, { session: refundSession })
-        }
-      })
-    } finally { await refundSession.endSession() }
-    return NextResponse.json({ message: error.message || 'Number purchase failed; wallet debit was refunded' }, { status: 409 })
+  try { activation = await reserveQuotedNumber(quote) }
+  catch (error) {
+    if (error.definitive) {
+      const refundSession = client.startSession()
+      try {
+        await refundSession.withTransaction(async () => {
+          const result = await orders.updateOne({ _id: orderId, status: 'debit_reserved' }, { $set: { status: 'refunded', failureReason: error.code, refundedAt: new Date(), updatedAt: new Date() } }, { session: refundSession })
+          if (result.modifiedCount === 1) {
+            await users.updateOne({ _id: userId }, { $inc: { balanceKobo: priceKobo } }, { session: refundSession })
+            await database.collection('numberRefunds').insertOne({ _id: orderId, userId, amountKobo: priceKobo, reason: 'reservation_rejected', createdAt: new Date() }, { session: refundSession })
+          }
+        })
+      } finally { await refundSession.endSession() }
+    } else {
+      await orders.updateOne({ _id: orderId }, { $set: { status: 'submission_review', updatedAt: new Date() } })
+    }
+    const order = await orders.findOne({ _id: orderId })
+    const user = await users.findOne({ _id: userId }, { projection: { balanceKobo: 1 } })
+    return json({ order: publicNumberOrder(order), balance: user.balanceKobo / 100,
+      message: error.definitive ? 'This supplier could not reserve a number. Your wallet has been fully refunded.'
+        : 'The provider has not confirmed the number yet. Your request is saved for support; please do not buy it again.',
+    }, error.definitive ? 200 : 202)
   }
 
   const completed = {
-    status: 'active',
-    activationId: String(activation.activationId),
-    phoneNumber: String(activation.phoneNumber),
-    providerActivationCostUsd: Number(activation.activationCost ?? providerPriceUsd),
-    countryCode: activation.countryCode,
-    canGetAnotherSms: Boolean(activation.canGetAnotherSms),
-    updatedAt: new Date(),
+    status: 'active', activationId: String(activation.activationId), phoneNumber: String(activation.phoneNumber),
+    providerActivationCostUsd: Number(activation.activationCost ?? quote.providerPriceUsd), countryCode: activation.countryCode,
+    reservedAt: new Date(), updatedAt: new Date(),
   }
   try { await orders.updateOne({ _id: orderId }, { $set: completed }) }
-  catch (error) { console.error('[numbers/purchase] activation persistence failed', { orderId: String(orderId), activationId: completed.activationId, message: error.message }) }
-
-  return NextResponse.json({
-    order: { _id: String(orderId), serverId, countryId, serviceCode, sellingPrice: koboToNaira(sellingPriceKobo), ...completed },
-    balance: koboToNaira(balanceAfterKobo),
-  }, { status: 201 })
+  catch (error) {
+    console.error('[numbers] activation needs recovery', { orderId: String(orderId), activationId: completed.activationId, message: error.message })
+    return json({ message: 'Your reservation needs confirmation. Retry this request to check its status.' }, 503)
+  }
+  const order = await orders.findOne({ _id: orderId })
+  const user = await users.findOne({ _id: userId }, { projection: { balanceKobo: 1 } })
+  return json({ order: publicNumberOrder(order), balance: Number(user.balanceKobo) / 100 }, 201)
 }

@@ -36,7 +36,7 @@ const serviceMeta = {
   admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
 const serviceOrder = ['boosting', 'numbers', 'logs', 'format']
-const deliveredStatuses = new Set(['delivered', 'active', 'completed'])
+const deliveredStatuses = new Set(['delivered', 'completed'])
 
 function orderDate(value) {
   if (!value) return 'Recently'
@@ -197,7 +197,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (

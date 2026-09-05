@@ -31,7 +31,7 @@ export default async function handler(request, response) {
       offers.push({ id: `${countryId}:${serviceCode}`, countryId, country: countryNames.get(countryId) || `Country ${countryId}`, serviceCode, service: serviceNames.get(serviceCode) || serviceCode.toUpperCase(), price: koboToNaira(numberSellingPriceKobo(price, '1')), prices: { '1': koboToNaira(numberSellingPriceKobo(price, '1')), '2': koboToNaira(numberSellingPriceKobo(price, '2')), '3': koboToNaira(numberSellingPriceKobo(price, '3')) }, available })
     }))
     offers.sort((a, b) => a.price - b.price || b.available - a.available)
-    response.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
+    response.setHeader('Cache-Control', 'no-store')
     return response.status(200).json({ offers, currency: 'NGN' })
   } catch (error) {
     console.error('[numbers/services] request failed', { message: error.message })
