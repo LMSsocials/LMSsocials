@@ -3,6 +3,19 @@ import { after, before, test } from 'node:test'
 import { MongoClient, ObjectId } from 'mongodb'
 import { chooseNumberSupplier, parseNumberStatus, verifyNumberQuote, createNumberQuote, reserveQuotedNumber } from '../lib/number-provider.js'
 import { publicNumberOrder, syncNumberOrder } from '../lib/number-order-lifecycle.js'
+import { isNumberCountryEnabled } from '../lib/number-catalog.js'
+
+test('United States virtual is hidden while the standard United States remains enabled', () => {
+  assert.equal(isNumberCountryEnabled('12'), false)
+  assert.equal(isNumberCountryEnabled('187'), true)
+})
+
+test('A hidden country cannot receive a quote', async () => {
+  await assert.rejects(
+    () => createNumberQuote({ userId: 'test-only', countryId: '12', serviceCode: 'wa', serverId: '1' }),
+    (error) => error.code === 'UNAVAILABLE' && error.definitive === true,
+  )
+})
 
 test('Recommended prefers a Gold supplier over cheaper unranked inventory', () => {
   const prices = { 1: { price: 0.01, count: 100 }, 2: { price: 0.2, count: 10 }, 3: { price: 0.15, count: 8 } }
@@ -216,12 +229,11 @@ scenario('A stale lease cannot issue a wallet credit', async () => {
   assert.equal((await outcome(args)).balance, 100000)
 })
 
-test('Live quote smoke check uses Gold inventory without buying a number', { skip: process.env.LMS_NUMBER_QUOTE_SMOKE !== '1' }, async () => {
-  const quote = await createNumberQuote({ userId: 'test-only', countryId: '12', serviceCode: 'go', serverId: '3' })
-  assert.equal(quote.quality, 'gold')
-  assert.ok(quote.priceKobo > 0)
+test('Live quote smoke check uses the configured WhatsApp USA offer without buying a number', { skip: process.env.LMS_NUMBER_QUOTE_SMOKE !== '1' }, async () => {
+  const quote = await createNumberQuote({ userId: 'test-only', countryId: '187', serviceCode: 'wa', serverId: '1' })
+  assert.equal(quote.priceKobo, 350000)
   await assert.rejects(() => verifyNumberQuote(quote.token, 'another-user'))
   const verified = await verifyNumberQuote(quote.token, 'test-only')
   assert.equal(verified.userId, 'test-only')
-  assert.ok(verified.providerId)
+  assert.equal(verified.providerId, '3193')
 })

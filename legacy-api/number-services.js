@@ -1,4 +1,5 @@
 import { koboToNaira, numberSellingPriceKobo } from '../lib/number-pricing.js'
+import { isNumberCountryEnabled } from '../lib/number-catalog.js'
 
 const PROVIDER_URL = 'https://smsbower.page/stubs/handler_api.php'
 
@@ -26,6 +27,7 @@ export default async function handler(request, response) {
     const serviceNames = new Map(serviceRows.map((item) => [String(item.code), String(item.name)]))
     const offers = []
     Object.entries(priceData || {}).forEach(([countryId, entries]) => Object.entries(entries || {}).forEach(([serviceCode, details]) => {
+      if (!isNumberCountryEnabled(countryId)) return
       const price = Number(details?.cost); const available = Number(details?.count)
       if (!Number.isFinite(price) || !Number.isFinite(available) || available <= 0) return
       offers.push({ id: `${countryId}:${serviceCode}`, countryId, country: countryNames.get(countryId) || `Country ${countryId}`, serviceCode, service: serviceNames.get(serviceCode) || serviceCode.toUpperCase(), price: koboToNaira(numberSellingPriceKobo(price, '1')), prices: { '1': koboToNaira(numberSellingPriceKobo(price, '1')), '2': koboToNaira(numberSellingPriceKobo(price, '2')), '3': koboToNaira(numberSellingPriceKobo(price, '3')) }, available })

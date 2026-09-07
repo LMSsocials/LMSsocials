@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
 import { getDatabase } from '../../../lib/mongodb'
 import { createNumberQuote } from '../../../lib/number-provider.js'
+import { isNumberCountryEnabled } from '../../../lib/number-catalog.js'
 
 export const runtime = 'nodejs'
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
@@ -15,7 +16,7 @@ export async function GET(request) {
   const countryId = params.get('countryId') || ''
   const serviceCode = params.get('serviceCode') || ''
   const serverId = params.get('serverId') || ''
-  if (!/^\d{1,5}$/.test(countryId) || !/^[a-zA-Z0-9_-]{1,30}$/.test(serviceCode) || !['1', '2', '3'].includes(serverId)) return json({ message: 'Invalid number selection' }, 400)
+  if (!/^\d{1,5}$/.test(countryId) || !isNumberCountryEnabled(countryId) || !/^[a-zA-Z0-9_-]{1,30}$/.test(serviceCode) || !['1', '2', '3'].includes(serverId)) return json({ message: 'Invalid number selection' }, 400)
   const database = await getDatabase()
   const user = await database.collection('users').findOne({ _id: new ObjectId(session.sub) }, { projection: { isBanned: 1 } })
   if (!user || user.isBanned) return json({ message: 'Account unavailable' }, 403)
