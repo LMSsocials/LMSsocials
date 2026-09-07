@@ -18,6 +18,12 @@ test('Unavailable/invalid inventory is never chosen', () => {
   assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '2' }), null)
 })
 
+test('A required supplier is selected exactly and never silently substituted', () => {
+  const prices = { 3192: { price: 1, count: 100 }, 3193: { price: 1.735, count: 20 } }
+  assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '1', providerId: '3193' }).providerId, '3193')
+  assert.equal(chooseNumberSupplier({ prices: { 3192: prices[3192] }, goldPartners: {}, serverId: '1', providerId: '3193' }), null)
+})
+
 test('SMS parsing preserves leading zeros and recognizes a previous delivered code', () => {
   assert.deepEqual(parseNumberStatus('STATUS_OK:001234'), { status: 'completed', smsCode: '001234' })
   assert.deepEqual(parseNumberStatus('STATUS_WAIT_RETRY:000321'), { status: 'completed', smsCode: '000321' })
