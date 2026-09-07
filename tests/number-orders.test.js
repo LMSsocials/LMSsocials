@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test'
 import { MongoClient, ObjectId } from 'mongodb'
 import { chooseNumberSupplier, parseNumberStatus, verifyNumberQuote, createNumberQuote, reserveQuotedNumber } from '../lib/number-provider.js'
 import { publicNumberOrder, syncNumberOrder } from '../lib/number-order-lifecycle.js'
-import { isNumberCountryEnabled } from '../lib/number-catalog.js'
+import { isNumberCountryEnabled, numberProviderForOffer } from '../lib/number-catalog.js'
 
 test('United States virtual is hidden while the standard United States remains enabled', () => {
   assert.equal(isNumberCountryEnabled('12'), false)
@@ -15,6 +15,13 @@ test('A hidden country cannot receive a quote', async () => {
     () => createNumberQuote({ userId: 'test-only', countryId: '12', serviceCode: 'wa', serverId: '1' }),
     (error) => error.code === 'UNAVAILABLE' && error.definitive === true,
   )
+})
+
+test('WhatsApp USA pins each server to its configured supplier product', () => {
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '1' }), '3193')
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '2' }), '2617')
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '3' }), '3459')
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'tg', serverId: '2' }), undefined)
 })
 
 test('Recommended prefers a Gold supplier over cheaper unranked inventory', () => {

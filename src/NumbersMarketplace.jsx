@@ -4,7 +4,7 @@ import NumberInbox from './NumberInbox'
 
 const servers = [
   { id: '1', label: 'Budget', note: 'Lowest available cost' },
-  { id: '2', label: 'Recommended', note: 'Gold suppliers preferred' },
+  { id: '2', label: 'Silver', note: 'Silver supplier inventory' },
   { id: '3', label: 'Gold only', note: 'Gold suppliers exclusively' },
 ]
 const money = (value) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(value)
@@ -163,7 +163,7 @@ export default function NumbersMarketplace({ userId }) {
         {selected ? <><div className='number-selection-icon'><Smartphone /></div><small>{selected.country}</small><h3>{selected.service}</h3><p>One temporary number for receiving an SMS verification code.</p>
           {quoteState === 'loading' && <p role='status'><LoaderCircle className='spin' /> Checking supplier and price…</p>}
           {quoteError && quoteState === 'error' && <p role='alert' className='number-notice error'>{quoteError}</p>}
-          {quote && <><div className='number-availability'><i /> {quote.quality === 'gold' ? 'Gold supplier selected' : 'Standard supplier selected'}</div>{serverId === '2' && quote.quality !== 'gold' && <p>No Gold suppliers are available for this selection. This price is for a standard supplier.</p>}<div className='number-total'><span><small>Total price</small><strong>{money(quote.priceKobo / 100)}</strong></span><button type='button' onClick={purchaseNumber} disabled={purchasing || expired || Boolean(pendingRequest)}><ShoppingCart /> {purchasing ? 'Purchasing…' : 'Buy number'}</button></div></>}
+          {quote && <><div className='number-availability'><i /> {quote.quality === 'gold' ? 'Gold supplier selected' : quote.quality === 'silver' ? 'Silver supplier selected' : 'Standard supplier selected'}</div><div className='number-total'><span><small>Total price</small><strong>{money(quote.priceKobo / 100)}</strong></span><button type='button' onClick={purchaseNumber} disabled={purchasing || expired || Boolean(pendingRequest)}><ShoppingCart /> {purchasing ? 'Purchasing…' : 'Buy number'}</button></div></>}
           {(expired || quoteState === 'error') && <button className='number-refresh-quote' type='button' disabled={purchasing || Boolean(pendingRequest)} onClick={() => setQuoteRefresh((value) => value + 1)}>{expired ? 'Price expired — refresh price' : 'Check price again'}</button>}
           <p className='number-checkout-note'>Cancellation is available after two minutes if no SMS has arrived. Your full payment is refunded when cancellation is confirmed.</p>
         </> : <div className='number-empty'><Globe2 /><strong>Build your order</strong><small>Select a country and service to see the price.</small></div>}
