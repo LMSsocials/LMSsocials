@@ -4,8 +4,8 @@ import NumberInbox from './NumberInbox'
 
 const servers = [
   { id: '1', label: 'Budget', note: 'Lowest available cost' },
-  { id: '2', label: 'Silver', note: 'Silver supplier inventory' },
-  { id: '3', label: 'Gold only', note: 'Gold suppliers exclusively' },
+  { id: '2', label: 'Silver', note: 'Silver supplier inventory', esim: true },
+  { id: '3', label: 'Gold only', note: 'Gold suppliers exclusively', esim: true },
 ]
 const money = (value) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(value)
 
@@ -145,7 +145,7 @@ export default function NumbersMarketplace({ userId }) {
   return <section className='number-market number-market-v2'>
     <header className='number-market-head'><div className='number-head-icon'><Smartphone /></div><div><span>FOREIGN NUMBERS</span><h2>Buy a verification number</h2><p>Choose a country and service. Receive your number and SMS code right here.</p></div><small><i /> Live inventory</small></header>
     <div className='number-server-grid' aria-label='Number supplier selection'>
-      {servers.map((item) => <button key={item.id} type='button' disabled={purchasing || Boolean(pendingRequest)} className={serverId === item.id ? 'active server-live' : 'server-live'} onClick={() => changeSelection(() => setServerId(item.id))}><span><Server /></span><b>{item.label}</b><small>{item.note}</small><em>Option {item.id}</em></button>)}
+      {servers.map((item) => <button key={item.id} type='button' disabled={purchasing || Boolean(pendingRequest)} className={(serverId === item.id ? 'active server-live' : 'server-live') + (item.esim ? ' has-esim' : '')} onClick={() => changeSelection(() => setServerId(item.id))}><span><Server /></span><b>{item.label}</b><small>{item.note}</small>{item.esim && <i className='number-server-esim'>eSIM</i>}<em>Option {item.id}</em></button>)}
     </div>
     <div className='number-trust-row'><span><Globe2 /><b>Global coverage</b><small>Live country inventory</small></span><span><Clock3 /><b>SMS updates</b><small>Check codes on this page</small></span><span><ShieldCheck /><b>Cancellation support</b><small>Refund after cancellation is confirmed</small></span></div>
     {pendingRequest && <div className='number-notice' role='status'>You have a purchase awaiting confirmation. Check it before placing another order. <button type='button' onClick={purchaseNumber} disabled={purchasing}>{purchasing ? 'Checking…' : 'Check purchase'}</button></div>}
