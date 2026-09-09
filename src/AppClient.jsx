@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
+import Image from 'next/image'
 import {
   ArrowRight,
   ArrowLeft,
@@ -25,7 +27,19 @@ import {
   Zap,
 } from 'lucide-react'
 import { authClient as supabase } from './lib/auth-client'
-import Dashboard from './Dashboard'
+import heroImage from '../public/assets/boosting-hero-v3.png'
+import logoImage from '../public/assets/lms-logo-clean.png'
+import socialOrbitImage from '../public/assets/social-orbit.jpg'
+
+const Dashboard = dynamic(() => import('./Dashboard'), {
+  loading: () => <main className="auth-loading"><Logo /><span>Loading your dashboard...</span></main>,
+})
+
+const sessionRoutes = new Set(['#login', '#signup', '#admin/login', '#account'])
+
+function routeNeedsSession(route) {
+  return sessionRoutes.has(route) || route.startsWith('#account/')
+}
 
 const services = [
   {
@@ -64,7 +78,7 @@ const countries = [
 function Logo() {
   return (
     <a className="logo" href="#top" aria-label="LMS Socials home">
-      <span className="logo-mark"><img src="/assets/lms-logo-clean.png" alt="" /></span>
+      <span className="logo-mark"><Image src={logoImage} alt="" sizes="74px" /></span>
       <span className="logo-word">SOCIALS</span>
     </a>
   )
@@ -253,13 +267,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!supabase) return undefined
-
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setAuthReady(true)
-    })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
       setAuthReady(true)
@@ -267,6 +274,19 @@ function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!routeNeedsSession(route) || authReady) return
+
+    let cancelled = false
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return
+      setSession(data.session)
+      setAuthReady(true)
+    })
+
+    return () => { cancelled = true }
+  }, [route, authReady])
 
   const notify = (message) => {
     setToast(message)
@@ -352,7 +372,14 @@ function App() {
 
         <div className="hero-visual" aria-hidden="true">
           <div className="hero-blob" />
-          <img className="hero-person" src="/assets/boosting-hero-v3.png" alt="" />
+          <Image
+            className="hero-person"
+            src={heroImage}
+            alt=""
+            sizes="(max-width: 720px) 380px, 500px"
+            quality={75}
+            preload
+          />
           <div className="hero-arrow">↗</div>
           <div className="hero-chip chip-boost">
             <span><TrendingUp /></span>
@@ -383,7 +410,7 @@ function App() {
             <span className="status-dot"><Check size={16} /></span>
             <div><strong>Order complete</strong><small>Instagram • 10k followers</small></div>
           </div>
-          <div className="social-art-card"><img src="/assets/social-orbit.jpg" alt="" /></div>
+          <div className="social-art-card"><Image src={socialOrbitImage} alt="" sizes="(max-width: 720px) 190px, 255px" /></div>
           <div className="phone-card">
             <div className="phone-top"><Logo /><span>•••</span></div>
             <div className="phone-balance"><small>Available balance</small><strong>$1,280.50</strong><span>+12.5% this month</span></div>
@@ -406,7 +433,7 @@ function App() {
             <p>Your socials shouldn't sit still. Neither should your website.</p>
           </div>
           <div className="story-orbit" aria-hidden="true">
-            <div className="story-disc"><img src="/assets/social-orbit.jpg" alt="" /></div>
+            <div className="story-disc"><Image src={socialOrbitImage} alt="" sizes="(max-width: 720px) 205px, (max-width: 960px) 260px, 330px" /></div>
             <div className="orbit-pill pill-one">Instagram <span>↗</span></div>
             <div className="orbit-pill pill-two">Facebook <span>+24K</span></div>
             <div className="orbit-pill pill-three">Global reach <Globe2 /></div>

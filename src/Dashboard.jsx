@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
+import Image from 'next/image'
 import {
   ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2,
   Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, X,
 } from 'lucide-react'
-import LogsMarketplace from './LogsMarketplace'
-import BoostMarketplace from './BoostMarketplace'
-import NumbersMarketplace from './NumbersMarketplace'
-import FormatMarketplace from './FormatMarketplace'
-import AdminPanel from './AdminPanel'
+import logoImage from '../public/assets/lms-logo-clean.png'
+
+const MarketplaceLoading = () => <section className='dash-catalog'><div className='fund-loading'><LoaderCircle className='spin' /><span>Loading marketplace...</span></div></section>
+const LogsMarketplace = dynamic(() => import('./LogsMarketplace'), { loading: MarketplaceLoading })
+const BoostMarketplace = dynamic(() => import('./BoostMarketplace'), { loading: MarketplaceLoading })
+const NumbersMarketplace = dynamic(() => import('./NumbersMarketplace'), { loading: MarketplaceLoading })
+const FormatMarketplace = dynamic(() => import('./FormatMarketplace'), { loading: MarketplaceLoading })
+const AdminPanel = dynamic(() => import('./AdminPanel'), { loading: MarketplaceLoading })
 
 const catalog = {
   boosting: [
@@ -127,10 +132,10 @@ export default function Dashboard({ route, session, onSignOut }) {
     <main className='dash-page'>
       <section className='dash-frame' id='dashboard'>
         <nav className='dash-nav'>
-          <a className='logo dash-brand' href='#top' aria-label='LMS Socials home'><span className='logo-mark'><img src='/assets/lms-logo-clean.png' alt='' /></span><span className='logo-word'>SOCIALS</span></a>
+          <a className='logo dash-brand' href='#top' aria-label='LMS Socials home'><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
           <div className={'dash-nav-links ' + (mobileMenuOpen ? 'open' : '')} id='mobile-dashboard-menu'>
             <div className='dash-mobile-menu-head'>
-              <a className='logo' href='#top' onClick={() => setMobileMenuOpen(false)}><span className='logo-mark'><img src='/assets/lms-logo-clean.png' alt='' /></span><span className='logo-word'>SOCIALS</span></a>
+              <a className='logo' href='#top' onClick={() => setMobileMenuOpen(false)}><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
             <button className={!activeService ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
