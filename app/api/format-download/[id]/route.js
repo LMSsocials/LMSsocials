@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { GridFSBucket, ObjectId } from 'mongodb'
 import { Readable } from 'node:stream'
-import { FORMAT_CONTENT_TYPES, formatFileDetails } from '../../../../lib/format-files'
+import { FORMAT_CONTENT_TYPES, formatDownloadDisposition, formatFileDetails } from '../../../../lib/format-files'
 import { getDatabase } from '../../../../lib/mongodb'
 import { SESSION_COOKIE, verifySessionToken } from '../../../../lib/auth'
 
@@ -23,8 +23,8 @@ export async function GET(_request, { params }) {
   const fileDetails = asset && formatFileDetails(asset.fileName, asset.contentType)
   if (!asset || !fileDetails) return NextResponse.json({ message: 'File not found' }, { status: 404 })
 
-  const fileName = String(asset.fileName || `download.${fileDetails.label.toLowerCase()}`).replace(/["\r\n]/g, '')
-  const headers = { 'Content-Type': fileDetails.contentType, 'Content-Disposition': `attachment; filename="${fileName}"`, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' }
+  const fileName = asset.fileName || `download.${fileDetails.label.toLowerCase()}`
+  const headers = { 'Content-Type': fileDetails.contentType, 'Content-Disposition': formatDownloadDisposition(fileName), 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' }
   if (asset.storage === 'vercel-blob' && asset.blobUrl) {
     const result = await get(asset.blobUrl, { access: 'private' })
     if (result.statusCode !== 200 || !result.stream) return NextResponse.json({ message: 'File not found' }, { status: 404 })
