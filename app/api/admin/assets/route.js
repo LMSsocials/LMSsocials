@@ -1,14 +1,12 @@
 import { head } from '@vercel/blob'
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '../../../../lib/admin'
+import { MAX_FORMAT_FILE_SIZE, formatFileDetails } from '../../../../lib/format-files'
 import { getDatabase } from '../../../../lib/mongodb'
 
 export const runtime = 'nodejs'
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024
-const ALLOWED_EXTENSIONS = new Set(['pdf'])
 const BLOCKED_TERMS = ['nibo', 'ajo', 'iyawo']
-const extensionOf = (name) => String(name).toLowerCase().split('.').pop()
 
 export async function GET() {
   if (!await getAdminSession()) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
@@ -38,10 +36,11 @@ export async function POST(request) {
   } catch {
     return NextResponse.json({ message: 'Uploaded file could not be verified' }, { status: 400 })
   }
-  if (!blob.pathname.startsWith('formats/') || !ALLOWED_EXTENSIONS.has(extensionOf(blob.pathname))) {
+  const fileDetails = formatFileDetails(blob.pathname, blob.contentType)
+  if (!blob.pathname.startsWith('formats/') || !fileDetails) {
     return NextResponse.json({ message: 'Unsupported file type' }, { status: 415 })
   }
-  if (blob.size <= 0 || blob.size > MAX_FILE_SIZE) return NextResponse.json({ message: 'Files must be 100 MB or smaller' }, { status: 413 })
+  if (blob.size <= 0 || blob.size > MAX_FORMAT_FILE_SIZE) return NextResponse.json({ message: 'Files must be 100 MB or smaller' }, { status: 413 })
   const fileName = String(body?.fileName || blob.pathname.split('/').pop())
   const searchableName = (fileName + ' ' + title).toLowerCase()
   if (BLOCKED_TERMS.some((term) => searchableName.includes(term))) {
@@ -52,7 +51,7 @@ export async function POST(request) {
   const document = {
     title, description, category, priceKobo: Math.round(price * 100),
     storage: 'vercel-blob', blobUrl: blob.url, downloadUrl: blob.downloadUrl, pathname: blob.pathname,
-    fileName, fileSize: blob.size, contentType: blob.contentType,
+    fileName, fileSize: blob.size, contentType: fileDetails.contentType,
     status: 'live', uploadedBy: admin.email, createdAt: new Date(), updatedAt: new Date(),
   }
   const result = await database.collection('adminAssets').insertOne(document)

@@ -4,6 +4,12 @@ import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Sea
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
+const formatType = (file) => {
+  const name = String(file?.name || '').toLowerCase()
+  if (name.endsWith('.txt') && (!file?.type || file.type === 'text/plain')) return 'TXT'
+  if (name.endsWith('.pdf') && (!file?.type || file.type === 'application/pdf')) return 'PDF'
+  return ''
+}
 
 export default function AdminPanel() {
   const [tab, setTab] = useState('vouchers')
@@ -80,6 +86,7 @@ export default function AdminPanel() {
     try {
       if (!(file instanceof File) || !file.size) throw new Error('Choose a file to upload')
       if (file.size > 100 * 1024 * 1024) throw new Error('Files must be 100 MB or smaller')
+      if (!['PDF', 'TXT'].includes(formatType(file))) throw new Error('Choose a PDF or TXT file')
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
       const blob = await upload(`formats/${Date.now()}-${safeName}`, file, {
         access: 'private',
@@ -99,7 +106,7 @@ export default function AdminPanel() {
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.message || 'Upload failed')
-      form.reset(); setState('success'); setMessage('PDF published and available in the Format library.'); await loadData()
+      form.reset(); setState('success'); setMessage(`${formatType(file)} published and available in the Format library.`); await loadData()
     } catch (error) {
       setState('error'); setMessage(error.message || 'Upload failed')
     } finally {
@@ -180,8 +187,8 @@ export default function AdminPanel() {
         <label>Title<input name='title' required maxLength='120' placeholder='Product title' /></label>
         <label>Description<textarea name='description' maxLength='500' placeholder='What the customer receives' /></label>
         <label>Price (NGN)<input name='price' type='number' min='8000' step='500' defaultValue='8000' required /></label>
-        <label className='admin-file'><UploadCloud /><span><strong>Choose file</strong><small>PDF file · max 100 MB</small></span><input name='file' type='file' accept='.pdf,application/pdf' required /></label>
-        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />}{state === 'loading' ? `Uploading${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Save draft'}</button>
+        <label className='admin-file'><UploadCloud /><span><strong>Choose file</strong><small>PDF or TXT · max 100 MB</small></span><input name='file' type='file' accept='.pdf,.txt,application/pdf,text/plain' required /></label>
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />}{state === 'loading' ? `Uploading${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Publish file'}</button>
       </form>
       <aside><div><span>UPLOADS</span><strong>{assets.length}</strong></div>{assets.length ? assets.map((asset) => <article key={asset._id}><FileText /><span><strong>{asset.title}</strong><small>{asset.fileName} · {money(asset.priceKobo)}</small></span><em>{asset.status}</em></article>) : <p>No uploads yet.</p>}</aside>
     </div> : <div className='admin-users'>

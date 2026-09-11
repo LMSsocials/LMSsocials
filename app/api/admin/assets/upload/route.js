@@ -1,14 +1,11 @@
 import { handleUpload } from '@vercel/blob/client'
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '../../../../../lib/admin'
+import { FORMAT_CONTENT_TYPES, MAX_FORMAT_FILE_SIZE, formatFileExtension } from '../../../../../lib/format-files'
 
 export const runtime = 'nodejs'
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024
-const ALLOWED_EXTENSIONS = new Set(['pdf'])
-const ALLOWED_CONTENT_TYPES = ['application/pdf']
-
-const extensionOf = (name) => String(name).toLowerCase().split('.').pop()
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'txt'])
 
 export async function POST(request) {
   if (!await getAdminSession()) {
@@ -21,12 +18,12 @@ export async function POST(request) {
       request,
       body,
       onBeforeGenerateToken: async (pathname) => {
-        if (!pathname.startsWith('formats/') || !ALLOWED_EXTENSIONS.has(extensionOf(pathname))) {
+        if (!pathname.startsWith('formats/') || !ALLOWED_EXTENSIONS.has(formatFileExtension(pathname))) {
           throw new Error('Unsupported file type')
         }
         return {
-          allowedContentTypes: ALLOWED_CONTENT_TYPES,
-          maximumSizeInBytes: MAX_FILE_SIZE,
+          allowedContentTypes: FORMAT_CONTENT_TYPES,
+          maximumSizeInBytes: MAX_FORMAT_FILE_SIZE,
           addRandomSuffix: true,
           allowOverwrite: false,
         }

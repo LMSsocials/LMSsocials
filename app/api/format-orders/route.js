@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { getDatabase, getMongoClient } from '../../../lib/mongodb'
 import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
+import { FORMAT_CONTENT_TYPES } from '../../../lib/format-files'
 
 export const runtime = 'nodejs'
 
@@ -32,7 +33,7 @@ export async function POST(request) {
   const orders = database.collection('formatOrders')
   await Promise.all([orders.createIndex({ requestId: 1 }, { unique: true }), orders.createIndex({ userId: 1, assetId: 1 }, { unique: true })])
   const existing = await orders.findOne({ userId, assetId, status: 'delivered' })
-  if (existing) return NextResponse.json({ message: 'This PDF is already in your library', order: { ...existing, _id: String(existing._id), assetId: String(existing.assetId), downloadUrl: `/api/format-download/${existing._id}` } }, { status: 409 })
+  if (existing) return NextResponse.json({ message: 'This file is already in your library', order: { ...existing, _id: String(existing._id), assetId: String(existing.assetId), downloadUrl: `/api/format-download/${existing._id}` } }, { status: 409 })
 
   const orderId = new ObjectId()
   const now = new Date()
@@ -41,7 +42,7 @@ export async function POST(request) {
   let balanceAfterKobo
   try {
     await session.withTransaction(async () => {
-      asset = await database.collection('adminAssets').findOne({ _id: assetId, category: 'formats', status: 'live', contentType: 'application/pdf' }, { session })
+      asset = await database.collection('adminAssets').findOne({ _id: assetId, category: 'formats', status: 'live', contentType: { $in: FORMAT_CONTENT_TYPES } }, { session })
       if (!asset) throw new Error('NOT_FOUND')
       const user = await database.collection('users').findOneAndUpdate(
         { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: asset.priceKobo } },
@@ -50,15 +51,15 @@ export async function POST(request) {
       )
       if (!user) throw new Error('INSUFFICIENT_BALANCE')
       balanceAfterKobo = user.balanceKobo
-      await orders.insertOne({ _id: orderId, requestId: String(body.requestId), userId, assetId, title: asset.title, fileName: asset.fileName, priceKobo: asset.priceKobo, balanceAfterKobo, status: 'delivered', createdAt: now, updatedAt: now }, { session })
+      await orders.insertOne({ _id: orderId, requestId: String(body.requestId), userId, assetId, title: asset.title, fileName: asset.fileName, contentType: asset.contentType, priceKobo: asset.priceKobo, balanceAfterKobo, status: 'delivered', createdAt: now, updatedAt: now }, { session })
     })
   } catch (error) {
-    if (error.message === 'NOT_FOUND') return NextResponse.json({ message: 'This PDF is no longer available' }, { status: 404 })
+    if (error.message === 'NOT_FOUND') return NextResponse.json({ message: 'This file is no longer available' }, { status: 404 })
     if (error.message === 'INSUFFICIENT_BALANCE') return NextResponse.json({ message: 'Insufficient wallet balance' }, { status: 402 })
-    if (error.code === 11000) return NextResponse.json({ message: 'This PDF is already in your library' }, { status: 409 })
+    if (error.code === 11000) return NextResponse.json({ message: 'This file is already in your library' }, { status: 409 })
     console.error('[formats/purchase]', { message: error.message })
-    return NextResponse.json({ message: 'Unable to complete PDF purchase' }, { status: 500 })
+    return NextResponse.json({ message: 'Unable to complete file purchase' }, { status: 500 })
   } finally { await session.endSession() }
 
-  return NextResponse.json({ order: { _id: String(orderId), assetId: String(assetId), title: asset.title, fileName: asset.fileName, priceKobo: asset.priceKobo, createdAt: now, downloadUrl: `/api/format-download/${orderId}` }, balance: balanceAfterKobo / 100 }, { status: 201 })
+  return NextResponse.json({ order: { _id: String(orderId), assetId: String(assetId), title: asset.title, fileName: asset.fileName, contentType: asset.contentType, priceKobo: asset.priceKobo, createdAt: now, downloadUrl: `/api/format-download/${orderId}` }, balance: balanceAfterKobo / 100 }, { status: 201 })
 }
