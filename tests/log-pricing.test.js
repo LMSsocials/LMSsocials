@@ -18,6 +18,8 @@ test('Fixed log prices match the storefront price list', () => {
     ['Clone X Twitter | Reg Phone Ultra | Reg Hotmail Trust | FULL 2FA', 230000],
     ['X Twitter USA Old | Year 2011 | Hotmail | FULL 2FA', 490000],
     ['X Twitter United Kingdom Stock | Year 2011 | Hotmail | FULL 2FA', 490000],
+    ['USA FACEBOOK PAGE CREATE ALREADY', 450000],
+    ['RANDOM FB PAGE CREATED YOURSELF', 390000],
   ]
 
   for (const [title, expectedPrice] of cases) {
