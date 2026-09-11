@@ -371,6 +371,7 @@ html,body { overflow-x: clip; }
 .auth-form-head p { margin: 0; color: #77716a; font-size: 13px; }
 .auth-form-head button { padding: 0; border: 0; color: #e84e54; background: none; font-weight: 800; cursor: pointer; }
 .auth-form { display: flex; flex-direction: column; gap: 17px; margin-top: 32px; }
+.auth-recovery-note { margin: 0; padding: 13px 14px; border-radius: 12px; color: #625d57; background: #f3ede4; font-size: 11px; line-height: 1.55; }
 .auth-form > label > span { display: block; margin-bottom: 7px; color: #514e49; font-size: 11px; font-weight: 700; }
 .auth-input { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 1px solid #ddd5c9; border-radius: 13px; background: white; transition: border-color .2s,box-shadow .2s; }
 .auth-input:focus-within { border-color: #ff777b; box-shadow: 0 0 0 4px rgba(255,93,98,.08); }

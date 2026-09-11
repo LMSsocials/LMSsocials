@@ -91,9 +91,11 @@ function AuthPage({ route }) {
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const [recoveryMode, setRecoveryMode] = useState(false)
 
   const switchMode = (mode) => {
     setMessage('')
+    setRecoveryMode(false)
     window.location.hash = mode
   }
 
@@ -136,17 +138,23 @@ function AuthPage({ route }) {
     }
   }
 
-  const handlePasswordReset = async () => {
+  const handlePasswordReset = async (event) => {
+    event.preventDefault()
     if (!email) {
-      setMessage('Enter your email address first, then select forgot password.')
+      setMessage('Enter the email address on your account.')
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/#reset-password',
-    })
-    setLoading(false)
-    setMessage(error ? error.message : 'If an account exists for this email, a recovery link has been sent.')
+    setMessage('')
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email)
+      if (error) throw error
+      setMessage(data.message)
+    } catch (error) {
+      setMessage(error.message || 'Password recovery is temporarily unavailable. Please try again later.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -174,13 +182,16 @@ function AuthPage({ route }) {
 
         <div className="auth-form-panel">
           <div className="auth-form-head">
-            <span>{isSignup ? 'JOIN LMS SOCIALS' : isAdminLogin ? 'ADMINISTRATION' : 'ACCOUNT ACCESS'}</span>
-            <h2>{isSignup ? 'Create your account' : isAdminLogin ? 'Admin sign in' : 'Sign in to continue'}</h2>
-            <p>{isAdminLogin ? <>Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></> : <>{isSignup ? 'Already have an account?' : 'New to LMS Socials?'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? 'Sign in' : 'Create account'}</button></>}</p>
+            <span>{recoveryMode ? 'PASSWORD RECOVERY' : isSignup ? 'JOIN LMS SOCIALS' : isAdminLogin ? 'ADMINISTRATION' : 'ACCOUNT ACCESS'}</span>
+            <h2>{recoveryMode ? 'Reset your password' : isSignup ? 'Create your account' : isAdminLogin ? 'Admin sign in' : 'Sign in to continue'}</h2>
+            {recoveryMode
+              ? <p>Remembered it? <button type="button" onClick={() => { setRecoveryMode(false); setMessage('') }}>Back to sign in</button></p>
+              : <p>{isAdminLogin ? <>Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></> : <>{isSignup ? 'Already have an account?' : 'New to LMS Socials?'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? 'Sign in' : 'Create account'}</button></>}</p>}
           </div>
 
-          <form className="auth-form" onSubmit={handleSubmit}>
-            {isSignup && (
+          <form className="auth-form" onSubmit={recoveryMode ? handlePasswordReset : handleSubmit}>
+            {recoveryMode && <p className="auth-recovery-note">Enter the email address used for your LMS Socials account. We will send a secure link that expires after 30 minutes.</p>}
+            {isSignup && !recoveryMode && (
               <label>
                 <span>Full name</span>
                 <div className="auth-input"><UserRound /><input name="name" type="text" placeholder="Your full name" autoComplete="name" required /></div>
@@ -190,16 +201,16 @@ function AuthPage({ route }) {
               <span>Email address</span>
               <div className="auth-input"><Mail /><input name="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></div>
             </label>
-            <label>
+            {!recoveryMode && <label>
               <span>Password</span>
               <div className="auth-input"><LockKeyhole /><input name="password" type={showPassword ? 'text' : 'password'} placeholder={isSignup ? 'At least 8 characters' : 'Enter your password'} minLength={8} autoComplete={isSignup ? 'new-password' : 'current-password'} required /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button></div>
-            </label>
-            <div className="auth-options">
+            </label>}
+            {!recoveryMode && <div className="auth-options">
               <label className="auth-check"><input type="checkbox" required={isSignup} /><span>{isSignup ? 'I agree to the terms and privacy policy' : 'Remember me'}</span></label>
-              {!isSignup && <button type="button" onClick={handlePasswordReset} disabled={loading}>Forgot password?</button>}
-            </div>
-            <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Please wait…' : isSignup ? 'Create my account' : 'Sign in'} {!loading && <ArrowRight size={18} />}</button>
-            {message && <div className="auth-message"><Check size={16} /> {message}</div>}
+              {!isSignup && <button type="button" onClick={() => { setRecoveryMode(true); setMessage('') }}>Forgot password?</button>}
+            </div>}
+            <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Please wait…' : recoveryMode ? 'Send reset link' : isSignup ? 'Create my account' : 'Sign in'} {!loading && <ArrowRight size={18} />}</button>
+            {message && <div className="auth-message" role="status" aria-live="polite"><Check size={16} /> {message}</div>}
           </form>
           {!isSignup && !isAdminLogin && <p className="auth-security"><ShieldCheck size={14} /> <a href="#admin/login">Administrator login</a></p>}
           <p className="auth-security"><ShieldCheck size={14} /> Secured account access • No hidden steps</p>
