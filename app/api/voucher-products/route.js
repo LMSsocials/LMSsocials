@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '../../../lib/mongodb'
-import { logCategory, sujanCatalog } from '../../../lib/log-providers'
+import { LOG_PRICE_RULES_VERSION, logCategory, sujanCatalog } from '../../../lib/log-providers'
 import { getSupplierPricing } from '../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 export async function GET() {
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
-  const pricingVersion = `sujan:${pricing.sujanMarkupPercent}`
+  const pricingVersion = `sujan:${pricing.sujanMarkupPercent}|rules:${LOG_PRICE_RULES_VERSION}`
   const [managed, cacheDocument] = await Promise.all([
     database.collection('voucherProducts')
       .find({ isPublished: true }, { projection: { title: 1, brand: 1, category: 1, description: 1, imageUrl: 1, priceKobo: 1, stockCount: 1 } })
