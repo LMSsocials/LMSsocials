@@ -1,7 +1,8 @@
 import { head } from '@vercel/blob'
 import { NextResponse } from 'next/server'
+import { ObjectId } from 'mongodb'
 import { getAdminSession } from '../../../../lib/admin'
-import { MAX_FORMAT_FILE_SIZE, formatFileDetails } from '../../../../lib/format-files'
+import { MAX_FORMAT_FILE_SIZE, MIN_FORMAT_PRICE_NAIRA, formatFileDetails, formatPriceKobo } from '../../../../lib/format-files'
 import { getDatabase } from '../../../../lib/mongodb'
 
 export const runtime = 'nodejs'
@@ -22,13 +23,13 @@ export async function POST(request) {
   const title = String(body?.title || '').trim()
   const description = String(body?.description || '').trim()
   const category = String(body?.category || '')
-  const price = Number(body?.price)
+  const priceKobo = formatPriceKobo(body?.price)
   const blobUrl = String(body?.blobUrl || '')
 
   if (!blobUrl || !title || !['logs', 'formats'].includes(category)) {
     return NextResponse.json({ message: 'Complete every required field' }, { status: 400 })
   }
-  if (!Number.isFinite(price) || price < 8000) return NextResponse.json({ message: 'Starting price is \u20A68,000' }, { status: 400 })
+  if (priceKobo === null) return NextResponse.json({ message: `Starting price is ₦${MIN_FORMAT_PRICE_NAIRA.toLocaleString('en-NG')}` }, { status: 400 })
 
   let blob
   try {
@@ -49,11 +50,31 @@ export async function POST(request) {
 
   const database = await getDatabase()
   const document = {
-    title, description, category, priceKobo: Math.round(price * 100),
+    title, description, category, priceKobo,
     storage: 'vercel-blob', blobUrl: blob.url, downloadUrl: blob.downloadUrl, pathname: blob.pathname,
     fileName, fileSize: blob.size, contentType: fileDetails.contentType,
     status: 'live', uploadedBy: admin.email, createdAt: new Date(), updatedAt: new Date(),
   }
   const result = await database.collection('adminAssets').insertOne(document)
   return NextResponse.json({ asset: { ...document, _id: String(result.insertedId) } }, { status: 201 })
+}
+
+export async function PATCH(request) {
+  const admin = await getAdminSession()
+  if (!admin) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
+  const body = await request.json().catch(() => null)
+  const assetId = String(body?.assetId || '')
+  const priceKobo = formatPriceKobo(body?.price)
+  if (!ObjectId.isValid(assetId)) return NextResponse.json({ message: 'Invalid format' }, { status: 400 })
+  if (priceKobo === null) return NextResponse.json({ message: `Price must be at least ₦${MIN_FORMAT_PRICE_NAIRA.toLocaleString('en-NG')}` }, { status: 400 })
+
+  const database = await getDatabase()
+  const updatedAt = new Date()
+  const asset = await database.collection('adminAssets').findOneAndUpdate(
+    { _id: new ObjectId(assetId), category: 'formats' },
+    { $set: { priceKobo, updatedAt, updatedBy: admin.email } },
+    { returnDocument: 'after', projection: { title: 1, priceKobo: 1, updatedAt: 1 } },
+  )
+  if (!asset) return NextResponse.json({ message: 'Format not found' }, { status: 404 })
+  return NextResponse.json({ asset: { ...asset, _id: String(asset._id) } })
 }

@@ -22,6 +22,8 @@ export default function AdminPanel() {
   const [state, setState] = useState('idle')
   const [message, setMessage] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [editingAssetId, setEditingAssetId] = useState('')
+  const [assetPrice, setAssetPrice] = useState('')
 
   const loadData = useCallback(async () => {
     const [assetsResponse, vouchersResponse, usersResponse, pricingResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing')])
@@ -114,6 +116,29 @@ export default function AdminPanel() {
     }
   }
 
+  const editAssetPrice = (asset) => {
+    setEditingAssetId(asset._id)
+    setAssetPrice(String(Number(asset.priceKobo || 0) / 100))
+    setMessage('')
+  }
+
+  const saveAssetPrice = async (assetId) => {
+    setState('loading'); setMessage('')
+    try {
+      const response = await fetch('/api/admin/assets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId, price: assetPrice }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to update price')
+      setAssets((current) => current.map((asset) => asset._id === assetId ? { ...asset, priceKobo: payload.asset.priceKobo } : asset))
+      setEditingAssetId(''); setAssetPrice(''); setState('success'); setMessage('Format price updated.')
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to update price')
+    }
+  }
+
   const toggleBan = async (user) => {
     const action = user.isBanned ? 'unban' : 'ban'
     if (!window.confirm(`${action === 'ban' ? 'Ban' : 'Unban'} ${user.email}?`)) return
@@ -190,7 +215,13 @@ export default function AdminPanel() {
         <label className='admin-file'><UploadCloud /><span><strong>Choose file</strong><small>PDF or TXT · max 100 MB</small></span><input name='file' type='file' accept='.pdf,.txt,application/pdf,text/plain' required /></label>
         <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />}{state === 'loading' ? `Uploading${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Publish file'}</button>
       </form>
-      <aside><div><span>UPLOADS</span><strong>{assets.length}</strong></div>{assets.length ? assets.map((asset) => <article key={asset._id}><FileText /><span><strong>{asset.title}</strong><small>{asset.fileName} · {money(asset.priceKobo)}</small></span><em>{asset.status}</em></article>) : <p>No uploads yet.</p>}</aside>
+      <aside><div><span>UPLOADS</span><strong>{assets.length}</strong></div>{assets.length ? assets.map((asset) => <article className='admin-asset-row' key={asset._id}>
+        <FileText />
+        <span><strong>{asset.title}</strong><small>{asset.fileName} · {money(asset.priceKobo)}</small></span>
+        {editingAssetId === asset._id
+          ? <div className='admin-asset-price-editor'><input aria-label={`New price for ${asset.title}`} type='number' min='8000' step='500' value={assetPrice} onChange={(event) => setAssetPrice(event.target.value)} /><button type='button' disabled={state === 'loading'} onClick={() => saveAssetPrice(asset._id)}>Save</button><button type='button' onClick={() => { setEditingAssetId(''); setAssetPrice('') }}>Cancel</button></div>
+          : <button className='admin-asset-edit' type='button' onClick={() => editAssetPrice(asset)}>Edit price</button>}
+      </article>) : <p>No uploads yet.</p>}</aside>
     </div> : <div className='admin-users'>
       <div className='admin-user-summary'>
         <article><Users /><span><small>USERS</small><strong>{users.length}</strong></span></article>
