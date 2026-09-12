@@ -13,7 +13,7 @@ a { color: inherit; text-decoration: none; }
 .logo-mark img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.15); }
 .nav-links { display: flex; align-items: center; gap: 34px; color: #b9bcb6; font-size: 14px; }
 .nav-links a:hover { color: white; }
-.nav-cta { border: 1px solid #333630; background: #191b19; border-radius: 12px; padding: 11px 16px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.nav-cta { border: 1px solid #333630; background: #191b19; border-radius: 12px; padding: 11px 16px; display: flex; align-items: center; gap: 8px; font: inherit; cursor: pointer; }
 .nav-cta:hover { background: var(--lime); color: #090a0b; border-color: var(--lime); }
 .mobile-cta, .menu-button { display: none; }
 .hero { min-height: 760px; padding-top: 112px; position: relative; overflow: hidden; }

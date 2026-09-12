@@ -274,7 +274,11 @@ function App() {
     setRoute(window.location.hash)
     const handleRoute = () => setRoute(window.location.hash)
     window.addEventListener('hashchange', handleRoute)
-    return () => window.removeEventListener('hashchange', handleRoute)
+    window.addEventListener('popstate', handleRoute)
+    return () => {
+      window.removeEventListener('hashchange', handleRoute)
+      window.removeEventListener('popstate', handleRoute)
+    }
   }, [])
 
   useEffect(() => {
@@ -305,6 +309,12 @@ function App() {
   }
 
   const closeMenu = () => setMenuOpen(false)
+  const openSignup = () => {
+    setMenuOpen(false)
+    setRoute('#signup')
+    if (window.location.hash !== '#signup') window.history.pushState(null, '', '#signup')
+    window.scrollTo(0, 0)
+  }
 
   useEffect(() => {
     const updateScroll = () => {
@@ -360,9 +370,9 @@ function App() {
           <a href="#numbers" onClick={closeMenu}>Countries</a>
           <a href="#why-us" onClick={closeMenu}>Why us</a>
           <a href="#support" onClick={closeMenu}>Support</a>
-          <a className="nav-cta mobile-cta" href="#signup">Get started <ArrowRight size={16} /></a>
+          <button type="button" className="nav-cta mobile-cta" onClick={openSignup}>Get started <ArrowRight size={16} /></button>
         </div>
-        <a className="nav-cta desktop-cta" href="#signup">Get started <ArrowRight size={16} /></a>
+        <button type="button" className="nav-cta desktop-cta" onClick={openSignup}>Get started <ArrowRight size={16} /></button>
         <button className="menu-button" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X /> : <Menu />}
         </button>
@@ -373,7 +383,7 @@ function App() {
         <h1>Make your social<br />presence <em>loud.</em></h1>
         <p className="hero-copy">Premium digital services for people who take growth seriously. Powerful boosting, quality logs, and global numbers—all under LMS.</p>
         <div className="hero-actions">
-          <a className="button primary" href="#signup">Get started <ArrowRight size={18} /></a>
+          <button type="button" className="button primary" onClick={openSignup}>Get started <ArrowRight size={18} /></button>
         </div>
         <div className="trust-row">
           <div><span className="avatars"><i>J</i><i>D</i><i>A</i></span><span><b>2,000+</b> happy customers</span></div>
