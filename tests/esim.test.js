@@ -6,8 +6,9 @@ test('eSIM catalog has the three supported durations', () => {
   assert.deepEqual(ESIM_PLANS.map((plan) => plan.months), [1, 3, 6])
 })
 
-test('eSIM prices remain unavailable until an admin sets them', () => {
-  assert.deepEqual(normalizeEsimPrices(), { '1-month': null, '3-months': null, '6-months': null })
+test('eSIM prices use the configured catalog defaults', () => {
+  assert.deepEqual(normalizeEsimPrices(), { '1-month': 1850000, '3-months': 3000000, '6-months': 6000000 })
+  assert.deepEqual(normalizeEsimPrices({ pricesKobo: { '1-month': null } }), { '1-month': null, '3-months': 3000000, '6-months': 6000000 })
   assert.equal(esimPriceKobo(''), null)
   assert.equal(esimPriceKobo(99), null)
   assert.equal(esimPriceKobo(12500), 1250000)
