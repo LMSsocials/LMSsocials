@@ -335,7 +335,7 @@ function App() {
     return <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
   }
 
-  if (route === '#account' || ['boosting', 'numbers', 'logs', 'format'].includes(accountPage)) {
+  if (route === '#account' || ['boosting', 'numbers', 'logs', 'format', 'esim'].includes(accountPage)) {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading your account…</span></main>
     return session ? <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
   }

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, UploadCloud, UserCheck, Users } from 'lucide-react'
+import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, UploadCloud, UserCheck, Users, Wifi } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -17,6 +17,8 @@ export default function AdminPanel() {
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
   const [pricing, setPricing] = useState({ bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
+  const [esimPlans, setEsimPlans] = useState([])
+  const [esimPrices, setEsimPrices] = useState({})
   const [userSearch, setUserSearch] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [state, setState] = useState('idle')
@@ -26,15 +28,21 @@ export default function AdminPanel() {
   const [assetPrice, setAssetPrice] = useState('')
 
   const loadData = useCallback(async () => {
-    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing')])
+    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim')])
     const assetsPayload = await assetsResponse.json().catch(() => ({}))
     const vouchersPayload = await vouchersResponse.json().catch(() => ({}))
     const usersPayload = await usersResponse.json().catch(() => ({}))
     const pricingPayload = await pricingResponse.json().catch(() => ({}))
+    const esimPayload = await esimResponse.json().catch(() => ({}))
     if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
     if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
     if (usersResponse.ok) setUsers(usersPayload.users || [])
     if (pricingResponse.ok) setPricing(pricingPayload.pricing || { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
+    if (esimResponse.ok) {
+      const plans = esimPayload.plans || []
+      setEsimPlans(plans)
+      setEsimPrices(Object.fromEntries(plans.map((plan) => [plan.id, plan.priceKobo ? String(plan.priceKobo / 100) : ''])))
+    }
   }, [])
 
   useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [loadData])
@@ -165,6 +173,20 @@ export default function AdminPanel() {
     setPricing(payload.pricing); setState('success'); setMessage('Supplier markups saved. New catalog prices are now active.')
   }
 
+  const saveEsimPricing = async (event) => {
+    event.preventDefault()
+    setState('loading'); setMessage('')
+    const response = await fetch('/api/admin/esim', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prices: esimPrices }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update eSIM prices'); return }
+    const plans = payload.plans || []
+    setEsimPlans(plans)
+    setEsimPrices(Object.fromEntries(plans.map((plan) => [plan.id, plan.priceKobo ? String(plan.priceKobo / 100) : ''])))
+    setState('success'); setMessage('eSIM prices saved. Priced plans are now available for purchase.')
+  }
+
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
@@ -173,6 +195,7 @@ export default function AdminPanel() {
     <div className='admin-tabs'>
       <button className={tab === 'vouchers' ? 'active' : ''} onClick={() => { setTab('vouchers'); setMessage('') }}><CircleUserRound /> Logs</button>
       <button className={tab === 'pricing' ? 'active' : ''} onClick={() => { setTab('pricing'); setMessage('') }}><SlidersHorizontal /> Pricing</button>
+      <button className={tab === 'esim' ? 'active' : ''} onClick={() => { setTab('esim'); setMessage('') }}><Wifi /> eSIM</button>
       <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); setMessage('') }}><FileText /> Files & formats</button>
       <button className={tab === 'users' ? 'active' : ''} onClick={() => { setTab('users'); setMessage('') }}><Users /> Users</button>
     </div>
@@ -205,6 +228,12 @@ export default function AdminPanel() {
         <label><span>BulkAcc markup</span><div><input type='number' min='0' max='100' step='0.1' value={pricing.bulkaccMarkupPercent} onChange={(event) => setPricing((current) => ({ ...current, bulkaccMarkupPercent: event.target.value }))} required /><strong>%</strong></div><small>For social-account listings supplied by BulkAcc.</small></label>
         <label><span>Sujan Department markup</span><div><input type='number' min='0' max='100' step='0.1' value={pricing.sujanMarkupPercent} onChange={(event) => setPricing((current) => ({ ...current, sujanMarkupPercent: event.target.value }))} required /><strong>%</strong></div><small>For VPN, proxy, and marketplace listings.</small></label>
         <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Save pricing</button>
+      </form>
+    </section> : tab === 'esim' ? <section className='admin-pricing esim-admin-pricing'>
+      <header><Wifi /><div><small>eSIM PRICING</small><h3>Set plan prices</h3><p>Leave a price blank to keep that plan unavailable. Customers can only purchase plans with a saved price.</p></div></header>
+      <form onSubmit={saveEsimPricing}>
+        {esimPlans.map((plan) => <label key={plan.id}><span>{plan.name}</span><div><strong>₦</strong><input type='number' min='100' step='100' value={esimPrices[plan.id] || ''} onChange={(event) => setEsimPrices((current) => ({ ...current, [plan.id]: event.target.value }))} placeholder='Not set' /></div><small>{plan.description}</small></label>)}
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <Wifi />} Save eSIM prices</button>
       </form>
     </section> : tab === 'files' ? <div className='admin-grid'>
       <form onSubmit={uploadAsset}>

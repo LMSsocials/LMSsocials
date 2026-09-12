@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
   ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2,
-  Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, X,
+  Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, Wifi, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
 
@@ -12,6 +12,7 @@ const LogsMarketplace = dynamic(() => import('./LogsMarketplace'), { loading: Ma
 const BoostMarketplace = dynamic(() => import('./BoostMarketplace'), { loading: MarketplaceLoading })
 const NumbersMarketplace = dynamic(() => import('./NumbersMarketplace'), { loading: MarketplaceLoading })
 const FormatMarketplace = dynamic(() => import('./FormatMarketplace'), { loading: MarketplaceLoading })
+const EsimMarketplace = dynamic(() => import('./EsimMarketplace'), { loading: MarketplaceLoading })
 const AdminPanel = dynamic(() => import('./AdminPanel'), { loading: MarketplaceLoading })
 
 const catalog = {
@@ -26,6 +27,11 @@ const catalog = {
     ['Gmail Account', 'Fresh setup', '$3.50', 'New'],
   ],
   format: [],
+  esim: [
+    ['1 Month', 'Short-term eSIM access', '', 'Flexible'],
+    ['3 Months', 'Extended eSIM access', '', 'Popular'],
+    ['6 Months', 'Long-term eSIM access', '', 'Best value'],
+  ],
   numbers: [
     ['United States', '+1 private number', '$8.50', 'Live'],
     ['United Kingdom', '+44 private number', '$9.00', 'Live'],
@@ -38,9 +44,10 @@ const serviceMeta = {
   logs: { label: 'Buy logs', icon: CircleUserRound },
   numbers: { label: 'Foreign number', icon: Globe2 },
   format: { label: 'Buy format', icon: FileText },
+  esim: { label: 'Buy eSIM', icon: Wifi },
   admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
-const serviceOrder = ['boosting', 'numbers', 'logs', 'format']
+const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim']
 const deliveredStatuses = new Set(['delivered', 'completed'])
 
 function orderDate(value) {
@@ -85,18 +92,19 @@ export default function Dashboard({ route, session, onSignOut }) {
     if (activeService) return
     let cancelled = false
     setOrdersState('loading')
-    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders'].map(async (url) => {
+    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders'].map(async (url) => {
       const response = await fetch(url, { cache: 'no-store' })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
       return payload.orders || []
-    })).then(([logs, files, numbers, boosts]) => {
+    })).then(([logs, files, numbers, boosts, esims]) => {
       if (cancelled) return
       const combined = [
         ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
         ...files.map((order) => ({ id: order._id, type: 'File', item: order.title || order.fileName || 'Download', status: order.status || 'delivered', createdAt: order.createdAt })),
         ...numbers.map((order) => ({ id: order._id, type: 'Number', item: order.phoneNumber || [order.countryCode || order.countryId, order.serviceCode].filter(Boolean).join(' · ') || 'Virtual number', status: order.status || 'processing', createdAt: order.createdAt })),
         ...boosts.map((order) => ({ id: order._id, type: 'Boosting', item: order.serviceName || 'Social media boost', status: order.status || 'pending', createdAt: order.createdAt })),
+        ...esims.map((order) => ({ id: order._id, type: 'eSIM', item: `${order.planName} eSIM`, status: order.status || 'awaiting_code', createdAt: order.createdAt })),
       ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       setOrders(combined); setOrdersState('success')
     }).catch(() => { if (!cancelled) setOrdersState('error') })
@@ -145,6 +153,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
             <button className={activeService === 'logs' ? 'active' : ''} onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
             <button className={activeService === 'format' ? 'active' : ''} onClick={() => { window.location.hash = '#account/format'; setMobileMenuOpen(false) }}><FileText /> Buy format</button>
+            <button className={activeService === 'esim' ? 'active' : ''} onClick={() => { window.location.hash = '#account/esim'; setMobileMenuOpen(false) }}><Wifi /> Buy eSIM</button>
             <div className='dash-menu-group'>ACCOUNT</div>
             <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
             <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
@@ -193,7 +202,7 @@ export default function Dashboard({ route, session, onSignOut }) {
 
         <section className={'dash-layout ' + (!activeService ? 'overview' : 'service-page')}>
           {!activeService && <aside className='dash-services' id='services'>
-            <div className='dash-section-title'><div><span>SERVICES</span><h2>Choose a lane</h2></div><small>04</small></div>
+            <div className='dash-section-title'><div><span>SERVICES</span><h2>Choose a lane</h2></div><small>05</small></div>
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
               const Icon = item.icon
@@ -202,7 +211,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'esim' ? <EsimMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (

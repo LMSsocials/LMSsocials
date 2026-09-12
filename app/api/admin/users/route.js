@@ -18,12 +18,13 @@ export async function GET() {
   }).sort({ createdAt: -1 }).limit(250).toArray()
   const userIds = users.map((user) => user._id)
 
-  const [voucherOrders, formatOrders, numberOrders, boostingOrders] = userIds.length ? await Promise.all([
+  const [voucherOrders, formatOrders, numberOrders, boostingOrders, esimOrders] = userIds.length ? await Promise.all([
     database.collection('voucherOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('formatOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('numberOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('boostingOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
-  ]) : [[], [], [], []]
+    database.collection('esimOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
+  ]) : [[], [], [], [], []]
 
   const ordersByUser = new Map(userIds.map((id) => [String(id), []]))
   const addOrder = (userId, order) => ordersByUser.get(String(userId))?.push(order)
@@ -46,6 +47,11 @@ export async function GET() {
     id: String(order._id), requestId: text(order.requestId), apiOrderId: text(order.providerOrderId), type: 'Boosting',
     item: order.serviceName || 'Social media boost', amountKobo: Number(order.priceKobo || 0),
     status: order.status || 'pending', createdAt: order.createdAt,
+  }))
+  esimOrders.forEach((order) => addOrder(order.userId, {
+    id: String(order._id), requestId: text(order.requestId), apiOrderId: '', type: 'eSIM',
+    item: `${order.planName || `${order.months || ''} Month`} eSIM`, amountKobo: Number(order.priceKobo || 0),
+    status: order.status || 'awaiting_code', createdAt: order.createdAt,
   }))
 
   return NextResponse.json({ users: users.map((user) => {
