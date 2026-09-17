@@ -38,7 +38,7 @@ export async function GET() {
   ].sort((a, b) => Number(b.source === 'managed') - Number(a.source === 'managed') || a.category.localeCompare(b.category) || a.title.localeCompare(b.title))
 
   return NextResponse.json({ products: products.map((product) => {
-    const category = product.source === 'managed' ? product.category : logCategory(product.title)
+    const category = logCategory(product.category, product.brand, product.title)
     return { ...product, category, brand: product.source === 'managed' ? product.brand : category }
   }) })
 }

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules } from '../lib/log-providers.js'
+import { applyLogPriceRules, logCategory } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
-    ['MICROSOFT TEXTPLUS (Read Rules)', 240000],
+    ['MICROSOFT TEXTPLUS (Read Rules)', 270000],
     ['MICROSOFT NEXTPLUS (Read Rules)', 220000],
     ['OLD GOOGLE VOICE (TEXT AND CALL)', 860000],
     ['NEW GOOGLE VOICE (ONLY CALL)', 670000],
@@ -12,6 +12,8 @@ test('Fixed log prices match the storefront price list', () => {
     ['9 PROXY = 30 ip', 630000],
     ['9 PROXY = 20 ip', 480000],
     ['AVAST VPN', 230000],
+    ['EXPRESS FOR LAPTOP & PC', 270000],
+    ['EXPRESS FOR PHONE', 270000],
     ['IP VANISH VPN 7 DAYS', 120000],
     ['NORD VPN 7 DAYS', 120000],
     ['PIA VPN 7 DAYS', 120000],
@@ -25,6 +27,13 @@ test('Fixed log prices match the storefront price list', () => {
   for (const [title, expectedPrice] of cases) {
     assert.equal(applyLogPriceRules(title, 100), expectedPrice, title)
   }
+})
+
+test('Log products are grouped under their actual platforms', () => {
+  assert.equal(logCategory('Logs', 'LMS Socials', 'USA Spotify account'), 'Spotify')
+  assert.equal(logCategory('Other', 'MICROSOFT TEXTPLUS (Read Rules)'), 'TextPlus')
+  assert.equal(logCategory('Other', 'EXPRESS FOR PHONE'), 'VPN')
+  assert.equal(logCategory('Other', 'CLONE TIKTIOK US | Full 2FA'), 'TikTok')
 })
 
 test('Other clone-labelled products cost twice their calculated price', () => {

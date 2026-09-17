@@ -5,8 +5,11 @@ const brandLogos = {
   TrustPilot: ['trustpilot', '00B67A'], Reddit: ['reddit', 'FF4500'], Gmail: ['gmail', 'EA4335'], YouTube: ['youtube', 'FF0000'],
   'X / Twitter': ['x', '000000'], LinkedIn: ['linkedin', '0A66C2'], GitHub: ['github', '181717'], Discord: ['discord', '5865F2'],
   Pinterest: ['pinterest', 'BD081C'], Telegram: ['telegram', '26A5E4'], WhatsApp: ['whatsapp', '25D366'],
+  Spotify: ['spotify', '1ED760'],
   VPN: ['openvpn', 'EA7E20'],
 }
+
+const textPlusLogo = 'https://play-lh.googleusercontent.com/a9kW-OSwOC0_au9tEr6GyVHM5WwugvvR-Yp9ftt9jxrnKr3JCWe9PHgpnzQ5_3RW1lVNhoVh2A8s7qxk7ax-9A=s0-br30'
 
 const fallbackIcons = {
   'Google Voice': Phone, Proxy: Network, 'LMS Socials': PackageOpen, All: LayoutGrid,
@@ -24,6 +27,7 @@ function vpnProviderLogo(title) {
 }
 
 export default function SocialIcon({ category, title }) {
+  if (category === 'TextPlus') return <img className='social-logo' src={textPlusLogo} alt='' aria-hidden='true' loading='lazy' />
   const providerLogo = category === 'VPN' ? vpnProviderLogo(title) : null
   if (providerLogo) return <img className='social-logo' src={providerLogo} alt='' aria-hidden='true' loading='lazy' />
   if (category === 'Proxy') return <img className='social-logo proxy-logo' src='/assets/proxy-logo.jpg' alt='' aria-hidden='true' loading='lazy' />

@@ -46,18 +46,18 @@ export default function LogsMarketplace() {
 
   useEffect(() => { load() }, [])
 
-  const categories = useMemo(() => ['All', ...(products.some((product) => product.source === 'managed') ? ['LMS Socials'] : []), ...Array.from(new Set(products.filter((product) => product.source !== 'managed').map((product) => product.category).filter(Boolean))).sort()], [products])
+  const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((product) => product.category).filter(Boolean))).sort()], [products])
   const visibleProducts = products.filter((product) => {
     const search = query.trim().toLowerCase()
     const matchesSearch = !search || `${product.title} ${product.brand} ${product.description}`.toLowerCase().includes(search)
-    const matchesCategory = category === 'All' || (category === 'LMS Socials' ? product.source === 'managed' : product.category === category)
+    const matchesCategory = category === 'All' || product.category === category
     return matchesSearch && matchesCategory
   }).sort((first, second) => {
     const manualFirst = Number(second.source === 'managed') - Number(first.source === 'managed')
     return manualFirst || Number(first.priceKobo) - Number(second.priceKobo) || first.title.localeCompare(second.title)
   })
   const productSections = useMemo(() => {
-    if (category === 'All' || category === 'LMS Socials') return [{ label: '', products: visibleProducts }]
+    if (category === 'All') return [{ label: '', products: visibleProducts }]
     const grouped = new Map()
     visibleProducts.forEach((product) => {
       const label = subsectionFor(product)
