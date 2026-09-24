@@ -26,6 +26,8 @@ export default function AdminPanel() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [editingAssetId, setEditingAssetId] = useState('')
   const [assetPrice, setAssetPrice] = useState('')
+  const [editingProductId, setEditingProductId] = useState('')
+  const [productPrice, setProductPrice] = useState('')
 
   const loadData = useCallback(async () => {
     const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim')])
@@ -147,6 +149,29 @@ export default function AdminPanel() {
     }
   }
 
+  const editProductPrice = (product) => {
+    setEditingProductId(product._id)
+    setProductPrice(String(Number(product.priceKobo || 0) / 100))
+    setMessage('')
+  }
+
+  const saveProductPrice = async (productId) => {
+    setState('loading'); setMessage('')
+    try {
+      const response = await fetch('/api/admin/vouchers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, price: productPrice }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to update price')
+      setProducts((current) => current.map((product) => product._id === productId ? { ...product, priceKobo: payload.product.priceKobo } : product))
+      setEditingProductId(''); setProductPrice(''); setState('success'); setMessage('Log product price updated.')
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to update price')
+    }
+  }
+
   const toggleBan = async (user) => {
     const action = user.isBanned ? 'unban' : 'ban'
     if (!window.confirm(`${action === 'ban' ? 'Ban' : 'Unban'} ${user.email}?`)) return
@@ -221,7 +246,9 @@ export default function AdminPanel() {
           <button disabled={state === 'loading' || !products.length}>{state === 'loading' ? <LoaderCircle className='spin' /> : <UploadCloud />} Add codes to stock</button>
         </form>
       </div>
-      <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><SocialIcon category={product.category} title={product.title} /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span><em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
+      <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><SocialIcon category={product.category} title={product.title} /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span>{editingProductId === product._id
+        ? <div className='admin-asset-price-editor admin-product-price-editor'><input aria-label={`New price for ${product.title}`} type='number' min='100' step='50' value={productPrice} onChange={(event) => setProductPrice(event.target.value)} /><button type='button' disabled={state === 'loading'} onClick={() => saveProductPrice(product._id)}>Save</button><button type='button' onClick={() => { setEditingProductId(''); setProductPrice('') }}>Cancel</button></div>
+        : <button className='admin-asset-edit' type='button' onClick={() => editProductPrice(product)}>Edit price</button>}<em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
     </> : tab === 'pricing' ? <section className='admin-pricing'>
       <header><SlidersHorizontal /><div><small>SUPPLIER PRICING</small><h3>Set your marketplace margin</h3><p>These percentages are added to the live supplier cost. Changes apply to catalog prices and checkout immediately.</p></div></header>
       <form onSubmit={savePricing}>

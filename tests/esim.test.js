@@ -2,23 +2,24 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { ESIM_PLANS, esimPriceKobo, normalizeEsimPrices, publicEsimOrder } from '../lib/esim.js'
 
-test('eSIM catalog has the three supported durations', () => {
-  assert.deepEqual(ESIM_PLANS.map((plan) => plan.months), [1, 3, 6])
+test('eSIM catalog has the four supported durations', () => {
+  assert.deepEqual(ESIM_PLANS.map((plan) => plan.months), [1, 3, 6, 12])
 })
 
 test('eSIM prices use the configured catalog defaults', () => {
-  assert.deepEqual(normalizeEsimPrices(), { '1-month': 1850000, '3-months': 3000000, '6-months': 6000000 })
-  assert.deepEqual(normalizeEsimPrices({ pricesKobo: { '1-month': null } }), { '1-month': null, '3-months': 3000000, '6-months': 6000000 })
+  assert.deepEqual(normalizeEsimPrices(), { '1-month': 1850000, '3-months': 3000000, '6-months': 6000000, '1-year': 12000000 })
+  assert.deepEqual(normalizeEsimPrices({ pricesKobo: { '1-month': null } }), { '1-month': null, '3-months': 3000000, '6-months': 6000000, '1-year': 12000000 })
   assert.equal(esimPriceKobo(''), null)
   assert.equal(esimPriceKobo(99), null)
   assert.equal(esimPriceKobo(12500), 1250000)
 })
 
 test('stored eSIM prices are normalized in kobo', () => {
-  assert.deepEqual(normalizeEsimPrices({ pricesKobo: { '1-month': 1000000, '3-months': 2500000, '6-months': 4000000 } }), {
+  assert.deepEqual(normalizeEsimPrices({ pricesKobo: { '1-month': 1000000, '3-months': 2500000, '6-months': 4000000, '1-year': 7500000 } }), {
     '1-month': 1000000,
     '3-months': 2500000,
     '6-months': 4000000,
+    '1-year': 7500000,
   })
 })
 

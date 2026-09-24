@@ -7,6 +7,12 @@ import { encryptVoucherCode, voucherCodeHash } from '../../../../lib/voucher-cry
 export const runtime = 'nodejs'
 
 const cleanText = (value, max) => String(value || '').trim().slice(0, max)
+const voucherPriceKobo = (value) => {
+  const priceNaira = Number(value)
+  if (!Number.isFinite(priceNaira) || priceNaira < 100) return null
+  const priceKobo = Math.round(priceNaira * 100)
+  return Number.isSafeInteger(priceKobo) ? priceKobo : null
+}
 
 async function ensureIndexes(database) {
   await Promise.all([
@@ -38,8 +44,8 @@ export async function POST(request) {
     const category = cleanText(body.category, 60) || 'Gift cards'
     const description = cleanText(body.description, 500)
     const imageUrl = cleanText(body.imageUrl, 500)
-    const priceNaira = Number(body.price)
-    if (!title || !brand || !Number.isFinite(priceNaira) || priceNaira < 100) {
+    const priceKobo = voucherPriceKobo(body.price)
+    if (!title || !brand || priceKobo === null) {
       return NextResponse.json({ message: 'Enter a title, brand, and valid price' }, { status: 400 })
     }
     if (imageUrl && !/^https?:\/\//i.test(imageUrl) && !imageUrl.startsWith('/')) {
@@ -48,7 +54,7 @@ export async function POST(request) {
     const now = new Date()
     const product = {
       title, brand, category, description, imageUrl,
-      priceKobo: Math.round(priceNaira * 100), stockCount: 0, isPublished: true,
+      priceKobo, stockCount: 0, isPublished: true,
       createdBy: admin.email, createdAt: now, updatedAt: now,
     }
     const result = await database.collection('voucherProducts').insertOne(product)
@@ -98,4 +104,21 @@ export async function POST(request) {
   }
 
   return NextResponse.json({ message: 'Unsupported admin action' }, { status: 400 })
+}
+
+export async function PATCH(request) {
+  const admin = await getAdminSession()
+  if (!admin) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
+  const body = await request.json().catch(() => ({}))
+  if (!ObjectId.isValid(body.productId)) return NextResponse.json({ message: 'Select a valid product' }, { status: 400 })
+  const priceKobo = voucherPriceKobo(body.price)
+  if (priceKobo === null) return NextResponse.json({ message: 'Price must be at least ₦100' }, { status: 400 })
+
+  const product = await (await getDatabase()).collection('voucherProducts').findOneAndUpdate(
+    { _id: new ObjectId(body.productId) },
+    { $set: { priceKobo, updatedAt: new Date(), updatedBy: admin.email } },
+    { returnDocument: 'after', projection: { title: 1, priceKobo: 1, updatedAt: 1 } },
+  )
+  if (!product) return NextResponse.json({ message: 'Product not found' }, { status: 404 })
+  return NextResponse.json({ product: { ...product, _id: String(product._id) } })
 }
