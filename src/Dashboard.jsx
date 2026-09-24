@@ -49,6 +49,7 @@ const serviceMeta = {
 }
 const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim']
 const deliveredStatuses = new Set(['delivered', 'completed'])
+const notificationKey = (order) => order ? `${order.type}:${order.id}:${order.status}` : ''
 
 function orderDate(value) {
   if (!value) return 'Recently'
@@ -71,13 +72,21 @@ export default function Dashboard({ route, session, onSignOut }) {
   const [accountCopied, setAccountCopied] = useState(false)
   const [orders, setOrders] = useState([])
   const [ordersState, setOrdersState] = useState('loading')
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [lastSeenNotification, setLastSeenNotification] = useState(() => {
+    try { return localStorage.getItem(`lms-notifications-seen:${user.id}`) || '' } catch { return '' }
+  })
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   useEffect(() => {
-    const closeMenu = (event) => event.key === 'Escape' && setMobileMenuOpen(false)
+    const closeMenu = (event) => {
+      if (event.key !== 'Escape') return
+      setMobileMenuOpen(false)
+      setNotificationOpen(false)
+    }
     window.addEventListener('keydown', closeMenu)
     return () => window.removeEventListener('keydown', closeMenu)
   }, [])
@@ -89,7 +98,6 @@ export default function Dashboard({ route, session, onSignOut }) {
   }, [])
 
   useEffect(() => {
-    if (activeService) return
     let cancelled = false
     setOrdersState('loading')
     Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders'].map(async (url) => {
@@ -109,10 +117,22 @@ export default function Dashboard({ route, session, onSignOut }) {
       setOrders(combined); setOrdersState('success')
     }).catch(() => { if (!cancelled) setOrdersState('error') })
     return () => { cancelled = true }
-  }, [activeService])
+  }, [])
 
   const recentOrders = orders.slice(0, 3)
+  const notificationOrders = orders.slice(0, 5)
+  const latestNotification = notificationKey(notificationOrders[0])
+  const hasUnreadNotifications = Boolean(latestNotification && latestNotification !== lastSeenNotification)
   const deliveredOrders = orders.filter((order) => deliveredStatuses.has(String(order.status).toLowerCase())).length
+
+  function toggleNotifications() {
+    const nextOpen = !notificationOpen
+    setNotificationOpen(nextOpen)
+    setMobileMenuOpen(false)
+    if (!nextOpen || !latestNotification) return
+    setLastSeenNotification(latestNotification)
+    try { localStorage.setItem(`lms-notifications-seen:${user.id}`, latestNotification) } catch { return }
+  }
 
   async function openFunding() {
     setFundOpen(true); setFundState('loading'); setFundMessage('')
@@ -161,12 +181,22 @@ export default function Dashboard({ route, session, onSignOut }) {
             <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
           </div>
           <div className='dash-actions'>
-            <button aria-label='Notifications'><Bell /><i /></button>
+            <button className='notification-trigger' aria-label={hasUnreadNotifications ? 'Notifications, new activity' : 'Notifications'} aria-controls='dashboard-notifications' aria-expanded={notificationOpen} onClick={toggleNotifications}><Bell />{hasUnreadNotifications && <i />}</button>
             <button className='dash-avatar' title={user.email}>{name.charAt(0).toUpperCase()}</button>
             <button aria-label='Sign out' onClick={onSignOut}><LogOut /></button>
             <button className='dash-menu-toggle' aria-label='Open menu' aria-controls='mobile-dashboard-menu' aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu /></button>
           </div>
         </nav>
+        {notificationOpen && <><button className='notification-backdrop' aria-label='Close notifications' onClick={() => setNotificationOpen(false)} /><section className='notification-panel' id='dashboard-notifications' role='dialog' aria-modal='true' aria-labelledby='notification-title'>
+          <header><div><small>ACTIVITY</small><h2 id='notification-title'>Notifications</h2></div><button type='button' aria-label='Close notifications' onClick={() => setNotificationOpen(false)}><X /></button></header>
+          <div className='notification-list'>
+            {ordersState === 'loading' && <p><LoaderCircle className='spin' /> Loading notifications...</p>}
+            {ordersState === 'error' && <p>Notifications could not be loaded. Refresh to try again.</p>}
+            {ordersState === 'success' && !notificationOrders.length && <p><Bell /> You have no notifications yet.</p>}
+            {ordersState === 'success' && notificationOrders.map((order) => <article key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><strong>{order.type}: {order.item}</strong><small>{order.status} · {orderDate(order.createdAt)}</small></span></article>)}
+          </div>
+          {notificationOrders.length > 0 && <button className='notification-history' type='button' onClick={() => { setNotificationOpen(false); window.location.hash = '#account'; window.setTimeout(() => goTo('orders'), 50) }}>View recent orders <ArrowRight /></button>}
+        </section></>}
         {mobileMenuOpen && <button className='dash-menu-backdrop' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)} />}
         {fundOpen && <div className='fund-modal-backdrop' role='presentation' onMouseDown={() => fundState !== 'loading' && setFundOpen(false)}><section className='fund-modal' role='dialog' aria-modal='true' aria-labelledby='fund-wallet-title' onMouseDown={(event) => event.stopPropagation()}>
           <header><span><WalletCards /></span><div><small>BANK TRANSFER</small><h2 id='fund-wallet-title'>Fund your wallet</h2><p>Transfer to your dedicated account from any Nigerian bank.</p></div><button type='button' aria-label='Close funding dialog' onClick={() => setFundOpen(false)}><X /></button></header>
