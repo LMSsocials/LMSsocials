@@ -45,7 +45,7 @@ export default function EsimMarketplace() {
       if (!response.ok) throw new Error(payload.message || 'Purchase failed')
       setOrders((current) => [payload.order, ...current])
       window.dispatchEvent(new CustomEvent('wallet-balance', { detail: payload.balance }))
-      setMessage('Payment complete. Use the WhatsApp button below to request your eSIM code.')
+      setMessage('Payment complete. Use the WhatsApp button below to request your eSIM QR code.')
     } catch (error) {
       setMessage(error.message)
     } finally {
@@ -55,7 +55,7 @@ export default function EsimMarketplace() {
 
   return <section className='logs-market esim-market'>
     <header className='logs-head'>
-      <div><span>eSIM PLANS</span><h2>Stay connected for longer.</h2><p>Choose a duration and pay securely from your wallet. After payment, contact the admin on WhatsApp to receive your eSIM code.</p></div>
+      <div><span>eSIM PLANS</span><h2>Stay connected for longer.</h2><p>Choose a duration and pay securely from your wallet. After payment, contact the admin on WhatsApp to receive your eSIM QR code.</p></div>
       <div className='voucher-trust'><ShieldCheck /><span><strong>Purchase protected</strong><small>Contact unlocks after payment</small></span></div>
     </header>
 
@@ -75,7 +75,7 @@ export default function EsimMarketplace() {
     </div>}
 
     {orders.length > 0 && <section className='esim-orders'>
-      <div className='dash-section-title'><div><span>PAID ORDERS</span><h2>Request your eSIM code</h2></div><small>{orders.length}</small></div>
+      <div className='dash-section-title'><div><span>PAID ORDERS</span><h2>Request your eSIM QR code</h2></div><small>{orders.length}</small></div>
       <div>{orders.map((order) => <article key={order._id}>
         <i><Check /></i>
         <span><strong>{order.planName} eSIM</strong><small>{money(order.priceKobo)} · {new Date(order.createdAt).toLocaleDateString()} · Ref {order._id.slice(-8).toUpperCase()}</small></span>
