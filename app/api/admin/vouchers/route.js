@@ -92,7 +92,11 @@ export async function POST(request) {
     try {
       await session.withTransaction(async () => {
         await inventory.insertMany(documents, { session, ordered: true })
-        await products.updateOne({ _id: productId }, { $inc: { stockCount: documents.length }, $set: { updatedAt: now } }, { session })
+        await products.updateOne(
+          { _id: productId },
+          { $inc: { stockCount: documents.length }, $set: { isPublished: true, updatedAt: now, updatedBy: admin.email } },
+          { session },
+        )
       })
     } catch (error) {
       if (error.code === 11000) return NextResponse.json({ message: 'Some codes were uploaded by another request; refresh and retry' }, { status: 409 })
@@ -111,13 +115,25 @@ export async function PATCH(request) {
   if (!admin) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
   const body = await request.json().catch(() => ({}))
   if (!ObjectId.isValid(body.productId)) return NextResponse.json({ message: 'Select a valid product' }, { status: 400 })
-  const priceKobo = voucherPriceKobo(body.price)
-  if (priceKobo === null) return NextResponse.json({ message: 'Price must be at least ₦100' }, { status: 400 })
+
+  const updates = { updatedAt: new Date(), updatedBy: admin.email }
+  if (Object.hasOwn(body, 'price')) {
+    const priceKobo = voucherPriceKobo(body.price)
+    if (priceKobo === null) return NextResponse.json({ message: 'Price must be at least ₦100' }, { status: 400 })
+    updates.priceKobo = priceKobo
+  }
+  if (Object.hasOwn(body, 'isPublished')) {
+    if (typeof body.isPublished !== 'boolean') return NextResponse.json({ message: 'Publication status must be true or false' }, { status: 400 })
+    updates.isPublished = body.isPublished
+  }
+  if (!Object.hasOwn(updates, 'priceKobo') && !Object.hasOwn(updates, 'isPublished')) {
+    return NextResponse.json({ message: 'Choose a price or publication status to update' }, { status: 400 })
+  }
 
   const product = await (await getDatabase()).collection('voucherProducts').findOneAndUpdate(
     { _id: new ObjectId(body.productId) },
-    { $set: { priceKobo, updatedAt: new Date(), updatedBy: admin.email } },
-    { returnDocument: 'after', projection: { title: 1, priceKobo: 1, updatedAt: 1 } },
+    { $set: updates },
+    { returnDocument: 'after', projection: { title: 1, priceKobo: 1, isPublished: 1, updatedAt: 1 } },
   )
   if (!product) return NextResponse.json({ message: 'Product not found' }, { status: 404 })
   return NextResponse.json({ product: { ...product, _id: String(product._id) } })

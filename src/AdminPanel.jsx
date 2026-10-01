@@ -172,6 +172,25 @@ export default function AdminPanel() {
     }
   }
 
+  const toggleProductPublication = async (product) => {
+    const isPublished = !product.isPublished
+    if (!isPublished && !window.confirm(`Move ${product.title} to draft? It will disappear from the customer logs marketplace.`)) return
+    setState('loading'); setMessage('')
+    try {
+      const response = await fetch('/api/admin/vouchers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product._id, isPublished }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to update publication status')
+      setProducts((current) => current.map((item) => item._id === product._id ? { ...item, isPublished: payload.product.isPublished } : item))
+      setState('success'); setMessage(isPublished ? 'Log product is live in the marketplace.' : 'Log product moved to draft.')
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to update publication status')
+    }
+  }
+
   const toggleBan = async (user) => {
     const action = user.isBanned ? 'unban' : 'ban'
     if (!window.confirm(`${action === 'ban' ? 'Ban' : 'Unban'} ${user.email}?`)) return
@@ -248,7 +267,7 @@ export default function AdminPanel() {
       </div>
       <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><SocialIcon category={product.category} title={product.title} /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span>{editingProductId === product._id
         ? <div className='admin-asset-price-editor admin-product-price-editor'><input aria-label={`New price for ${product.title}`} type='number' min='100' step='50' value={productPrice} onChange={(event) => setProductPrice(event.target.value)} /><button type='button' disabled={state === 'loading'} onClick={() => saveProductPrice(product._id)}>Save</button><button type='button' onClick={() => { setEditingProductId(''); setProductPrice('') }}>Cancel</button></div>
-        : <button className='admin-asset-edit' type='button' onClick={() => editProductPrice(product)}>Edit price</button>}<em>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
+        : <div className='admin-product-actions'><button className='admin-asset-edit' type='button' onClick={() => editProductPrice(product)}>Edit price</button><button className={`admin-product-publish ${product.isPublished ? 'live' : 'draft'}`} type='button' disabled={state === 'loading'} onClick={() => toggleProductPublication(product)}>{product.isPublished ? 'Move to draft' : 'Publish'}</button></div>}<em className={product.isPublished ? 'live' : 'draft'}>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
     </> : tab === 'pricing' ? <section className='admin-pricing'>
       <header><SlidersHorizontal /><div><small>SUPPLIER PRICING</small><h3>Set your marketplace margin</h3><p>These percentages are added to the live supplier cost. Changes apply to catalog prices and checkout immediately.</p></div></header>
       <form onSubmit={savePricing}>
