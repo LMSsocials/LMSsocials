@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
   ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2,
-  Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, Wifi, X,
+  Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, Wifi, Wrench, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
 
@@ -13,6 +13,7 @@ const BoostMarketplace = dynamic(() => import('./BoostMarketplace'), { loading: 
 const NumbersMarketplace = dynamic(() => import('./NumbersMarketplace'), { loading: MarketplaceLoading })
 const FormatMarketplace = dynamic(() => import('./FormatMarketplace'), { loading: MarketplaceLoading })
 const EsimMarketplace = dynamic(() => import('./EsimMarketplace'), { loading: MarketplaceLoading })
+const ToolsMarketplace = dynamic(() => import('./ToolsMarketplace'), { loading: MarketplaceLoading })
 const AdminPanel = dynamic(() => import('./AdminPanel'), { loading: MarketplaceLoading })
 
 const catalog = {
@@ -32,6 +33,7 @@ const catalog = {
     ['3 Months', 'Extended eSIM access', '', 'Popular'],
     ['6 Months', 'Long-term eSIM access', '', 'Best value'],
   ],
+  tools: [],
   numbers: [
     ['United States', '+1 private number', '$8.50', 'Live'],
     ['United Kingdom', '+44 private number', '$9.00', 'Live'],
@@ -45,9 +47,10 @@ const serviceMeta = {
   numbers: { label: 'Foreign number', icon: Globe2 },
   format: { label: 'Buy format', icon: FileText },
   esim: { label: 'Buy eSIM', icon: Wifi },
+  tools: { label: 'Working Tools', icon: Wrench, note: 'Curated links' },
   admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
-const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim']
+const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools']
 const deliveredStatuses = new Set(['delivered', 'completed'])
 const notificationKey = (order) => order ? `${order.type}:${order.id}:${order.status}` : ''
 
@@ -174,6 +177,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <button className={activeService === 'logs' ? 'active' : ''} onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
             <button className={activeService === 'format' ? 'active' : ''} onClick={() => { window.location.hash = '#account/format'; setMobileMenuOpen(false) }}><FileText /> Buy format</button>
             <button className={activeService === 'esim' ? 'active' : ''} onClick={() => { window.location.hash = '#account/esim'; setMobileMenuOpen(false) }}><Wifi /> Buy eSIM</button>
+            <button className={activeService === 'tools' ? 'active' : ''} onClick={() => { window.location.hash = '#account/tools'; setMobileMenuOpen(false) }}><Wrench /> Working Tools</button>
             <div className='dash-menu-group'>ACCOUNT</div>
             <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
             <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
@@ -232,16 +236,16 @@ export default function Dashboard({ route, session, onSignOut }) {
 
         <section className={'dash-layout ' + (!activeService ? 'overview' : 'service-page')}>
           {!activeService && <aside className='dash-services' id='services'>
-            <div className='dash-section-title'><div><span>SERVICES</span><h2>Choose a lane</h2></div><small>05</small></div>
+            <div className='dash-section-title'><div><span>QUICK ACTIONS</span><h2>Choose a lane</h2></div><small>{String(serviceOrder.length).padStart(2, '0')}</small></div>
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
               const Icon = item.icon
-              return <button key={key} onClick={() => { window.location.hash = '#account/' + key }}><i><Icon /></i><span><strong>{item.label}</strong><small><b>{catalog[key].length} offers</b><em>Tap to open</em></small></span><ArrowRight /></button>
+              return <button key={key} onClick={() => { window.location.hash = '#account/' + key }}><i><Icon /></i><span><strong>{item.label}</strong><small><b>{item.note || `${catalog[key].length} offers`}</b><em>Tap to open</em></small></span><ArrowRight /></button>
             })}
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'esim' ? <EsimMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'esim' ? <EsimMarketplace /> : activeService === 'tools' ? <ToolsMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (

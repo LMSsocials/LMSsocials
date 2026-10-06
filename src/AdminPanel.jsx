@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { Ban, CircleUserRound, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, UploadCloud, UserCheck, Users, Wifi } from 'lucide-react'
+import { Ban, CircleUserRound, ExternalLink, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, Trash2, UploadCloud, UserCheck, Users, Wifi, Wrench } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -19,6 +19,8 @@ export default function AdminPanel() {
   const [pricing, setPricing] = useState({ bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
   const [esimPlans, setEsimPlans] = useState([])
   const [esimPrices, setEsimPrices] = useState({})
+  const [tools, setTools] = useState([])
+  const [editingTool, setEditingTool] = useState(null)
   const [userSearch, setUserSearch] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [state, setState] = useState('idle')
@@ -30,12 +32,13 @@ export default function AdminPanel() {
   const [productPrice, setProductPrice] = useState('')
 
   const loadData = useCallback(async () => {
-    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim')])
+    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse, toolsResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim'), fetch('/api/admin/tools')])
     const assetsPayload = await assetsResponse.json().catch(() => ({}))
     const vouchersPayload = await vouchersResponse.json().catch(() => ({}))
     const usersPayload = await usersResponse.json().catch(() => ({}))
     const pricingPayload = await pricingResponse.json().catch(() => ({}))
     const esimPayload = await esimResponse.json().catch(() => ({}))
+    const toolsPayload = await toolsResponse.json().catch(() => ({}))
     if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
     if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
     if (usersResponse.ok) setUsers(usersPayload.users || [])
@@ -45,6 +48,7 @@ export default function AdminPanel() {
       setEsimPlans(plans)
       setEsimPrices(Object.fromEntries(plans.map((plan) => [plan.id, plan.priceKobo ? String(plan.priceKobo / 100) : ''])))
     }
+    if (toolsResponse.ok) setTools(toolsPayload.tools || [])
   }, [])
 
   useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [loadData])
@@ -231,6 +235,38 @@ export default function AdminPanel() {
     setState('success'); setMessage('eSIM prices saved. Priced plans are now available for purchase.')
   }
 
+  const saveTool = async (event) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const values = Object.fromEntries(new FormData(form))
+    setState('loading'); setMessage('')
+    try {
+      const response = await fetch('/api/admin/tools', {
+        method: editingTool ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingTool ? { ...values, toolId: editingTool._id } : values),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to save tool')
+      form.reset(); setEditingTool(null); setState('success'); setMessage(editingTool ? 'Tool updated.' : 'Tool added to Quick Actions.'); await loadData()
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to save tool')
+    }
+  }
+
+  const deleteTool = async (tool) => {
+    if (!window.confirm(`Remove ${tool.name} from the Tools page?`)) return
+    setState('loading'); setMessage('')
+    try {
+      const response = await fetch('/api/admin/tools', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ toolId: tool._id }) })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to remove tool')
+      setTools((current) => current.filter((item) => item._id !== tool._id)); setEditingTool(null); setState('success'); setMessage('Tool removed.')
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to remove tool')
+    }
+  }
+
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
@@ -240,6 +276,7 @@ export default function AdminPanel() {
       <button className={tab === 'vouchers' ? 'active' : ''} onClick={() => { setTab('vouchers'); setMessage('') }}><CircleUserRound /> Logs</button>
       <button className={tab === 'pricing' ? 'active' : ''} onClick={() => { setTab('pricing'); setMessage('') }}><SlidersHorizontal /> Pricing</button>
       <button className={tab === 'esim' ? 'active' : ''} onClick={() => { setTab('esim'); setMessage('') }}><Wifi /> eSIM</button>
+      <button className={tab === 'tools' ? 'active' : ''} onClick={() => { setTab('tools'); setMessage('') }}><Wrench /> Working Tools</button>
       <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); setMessage('') }}><FileText /> Files & formats</button>
       <button className={tab === 'users' ? 'active' : ''} onClick={() => { setTab('users'); setMessage('') }}><Users /> Users</button>
     </div>
@@ -281,7 +318,21 @@ export default function AdminPanel() {
         {esimPlans.map((plan) => <label key={plan.id}><span>{plan.name}</span><div><strong>₦</strong><input type='number' min='100' step='100' value={esimPrices[plan.id] || ''} onChange={(event) => setEsimPrices((current) => ({ ...current, [plan.id]: event.target.value }))} placeholder='Not set' /></div><small>{plan.description}</small></label>)}
         <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <Wifi />} Save eSIM prices</button>
       </form>
-    </section> : tab === 'files' ? <div className='admin-grid'>
+    </section> : tab === 'tools' ? <div className='admin-grid tools-admin-grid'>
+      <form onSubmit={saveTool} key={editingTool?._id || 'new-tool'}>
+        <div className='admin-form-title'><Wrench /><span><strong>{editingTool ? 'Edit website tool' : 'Add website tool'}</strong><small>This appears in the customer Tools page.</small></span></div>
+        <label>Tool name<input name='name' required maxLength='120' defaultValue={editingTool?.name || ''} placeholder='Canva Pro' /></label>
+        <label>Website link<input name='url' type='text' inputMode='url' required defaultValue={editingTool?.url || ''} placeholder='https://example.com' /></label>
+        <label>Price (NGN)<input name='price' type='number' min='0' step='50' required defaultValue={editingTool ? Number(editingTool.priceKobo || 0) / 100 : ''} placeholder='0 for free' /></label>
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <Wrench />}{editingTool ? 'Save changes' : 'Add tool'}</button>
+        {editingTool && <button className='admin-cancel-tool' type='button' onClick={() => setEditingTool(null)}>Cancel editing</button>}
+      </form>
+      <aside><div><span>WEBSITE TOOLS</span><strong>{tools.length}</strong></div>{tools.length ? tools.map((tool) => <article className='admin-tool-row' key={tool._id}>
+        <ExternalLink />
+        <span><strong>{tool.name}</strong><small>{money(tool.priceKobo)} · {tool.url}</small></span>
+        <div className='admin-tool-actions'><button type='button' onClick={() => { setEditingTool(tool); setMessage('') }}>Edit</button><button type='button' aria-label={`Remove ${tool.name}`} onClick={() => deleteTool(tool)}><Trash2 /></button></div>
+      </article>) : <p>No website tools yet.</p>}</aside>
+    </div> : tab === 'files' ? <div className='admin-grid'>
       <form onSubmit={uploadAsset}>
         <input name='category' type='hidden' value='formats' />
         <label>Title<input name='title' required maxLength='120' placeholder='Product title' /></label>
