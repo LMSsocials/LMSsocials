@@ -103,12 +103,12 @@ export default function Dashboard({ route, session, onSignOut }) {
   useEffect(() => {
     let cancelled = false
     setOrdersState('loading')
-    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders'].map(async (url) => {
+    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders', '/api/tools'].map(async (url) => {
       const response = await fetch(url, { cache: 'no-store' })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
-      return payload.orders || []
-    })).then(([logs, files, numbers, boosts, esims]) => {
+      return payload.orders || payload.tools || []
+    })).then(([logs, files, numbers, boosts, esims, tools]) => {
       if (cancelled) return
       const combined = [
         ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
@@ -116,6 +116,7 @@ export default function Dashboard({ route, session, onSignOut }) {
         ...numbers.map((order) => ({ id: order._id, type: 'Number', item: order.phoneNumber || [order.countryCode || order.countryId, order.serviceCode].filter(Boolean).join(' · ') || 'Virtual number', status: order.status || 'processing', createdAt: order.createdAt })),
         ...boosts.map((order) => ({ id: order._id, type: 'Boosting', item: order.serviceName || 'Social media boost', status: order.status || 'pending', createdAt: order.createdAt })),
         ...esims.map((order) => ({ id: order._id, type: 'eSIM', item: `${order.planName} eSIM`, status: order.status || 'awaiting_code', createdAt: order.createdAt })),
+        ...tools.filter((tool) => tool.purchased).map((tool) => ({ id: tool._id, type: 'Tool', item: tool.name, status: 'delivered', createdAt: tool.purchasedAt })),
       ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       setOrders(combined); setOrdersState('success')
     }).catch(() => { if (!cancelled) setOrdersState('error') })
