@@ -47,7 +47,7 @@ const serviceMeta = {
   numbers: { label: 'Foreign number', icon: Globe2 },
   format: { label: 'Buy format', icon: FileText },
   esim: { label: 'Buy eSIM', icon: Wifi },
-  tools: { label: 'Working Tools', icon: Wrench, note: 'Curated links' },
+  tools: { label: 'Working Tools', icon: Wrench, hideMeta: true },
   admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
 const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools']
@@ -240,7 +240,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
               const Icon = item.icon
-              return <button key={key} onClick={() => { window.location.hash = '#account/' + key }}><i><Icon /></i><span><strong>{item.label}</strong><small><b>{item.note || `${catalog[key].length} offers`}</b><em>Tap to open</em></small></span><ArrowRight /></button>
+              return <button key={key} onClick={() => { window.location.hash = '#account/' + key }}><i><Icon /></i><span><strong>{item.label}</strong><small>{!item.hideMeta && <b>{catalog[key].length} offers</b>}<em>Tap to open</em></small></span><ArrowRight /></button>
             })}
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
