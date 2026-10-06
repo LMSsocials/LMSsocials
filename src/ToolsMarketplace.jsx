@@ -27,7 +27,7 @@ export default function ToolsMarketplace() {
     {state === 'success' && tools.length > 0 && <div className='tools-grid'>{tools.map((tool, index) => <article key={tool._id}>
       <div className='tools-card-top'><i><Wrench /></i><span>{String(index + 1).padStart(2, '0')}</span></div>
       <small>WEB TOOL</small><h3>{tool.name}</h3><p>{new URL(tool.url).hostname.replace(/^www\./, '')}</p>
-      <footer><strong>{tool.priceKobo ? money(tool.priceKobo) : 'Free'}</strong><a href={tool.url} target='_blank' rel='noopener noreferrer'>Open website <ArrowUpRight /></a></footer>
+      <footer><strong>{tool.priceKobo ? money(tool.priceKobo) : 'Free'}</strong><a href={tool.url} target='_blank' rel='noopener noreferrer'>Buy now <ArrowUpRight /></a></footer>
     </article>)}</div>}
   </section>
 }
