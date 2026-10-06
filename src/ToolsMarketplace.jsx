@@ -43,7 +43,7 @@ export default function ToolsMarketplace() {
     {state === 'success' && !tools.length && <p className='tools-empty'>No tools have been added yet. Check back soon.</p>}
     {state === 'success' && tools.length > 0 && <div className='tools-grid'>{tools.map((tool, index) => <article key={tool._id}>
       <div className='tools-card-top'><i><Wrench /></i><span>{String(index + 1).padStart(2, '0')}</span></div>
-      <h3>{tool.name}</h3><p>{tool.purchased ? 'Purchased · Link unlocked' : 'Website link unlocks after purchase'}</p>
+      <h3>{tool.name}</h3>{tool.purchased && <p>Purchased · Link unlocked</p>}
       <footer><strong>{tool.priceKobo ? money(tool.priceKobo) : 'Free'}</strong>{tool.purchased
         ? <a href={tool.url} target='_blank' rel='noopener noreferrer'><Check /> Open tool <ArrowUpRight /></a>
         : <button type='button' disabled={Boolean(buying)} onClick={() => purchase(tool)}>{buying === tool._id ? <LoaderCircle className='spin' /> : <ShoppingBag />} Buy now</button>}</footer>
