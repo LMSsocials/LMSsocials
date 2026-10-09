@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
-  ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2,
+  ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2, ImageIcon,
   Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, Wifi, Wrench, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
@@ -14,6 +14,7 @@ const NumbersMarketplace = dynamic(() => import('./NumbersMarketplace'), { loadi
 const FormatMarketplace = dynamic(() => import('./FormatMarketplace'), { loading: MarketplaceLoading })
 const EsimMarketplace = dynamic(() => import('./EsimMarketplace'), { loading: MarketplaceLoading })
 const ToolsMarketplace = dynamic(() => import('./ToolsMarketplace'), { loading: MarketplaceLoading })
+const PicturesMarketplace = dynamic(() => import('./PicturesMarketplace'), { loading: MarketplaceLoading })
 const AdminPanel = dynamic(() => import('./AdminPanel'), { loading: MarketplaceLoading })
 
 const catalog = {
@@ -34,6 +35,7 @@ const catalog = {
     ['6 Months', 'Long-term eSIM access', '', 'Best value'],
   ],
   tools: [],
+  pictures: [],
   numbers: [
     ['United States', '+1 private number', '$8.50', 'Live'],
     ['United Kingdom', '+44 private number', '$9.00', 'Live'],
@@ -48,9 +50,10 @@ const serviceMeta = {
   format: { label: 'Buy format', icon: FileText },
   esim: { label: 'Buy eSIM', icon: Wifi },
   tools: { label: 'Working Tools', icon: Wrench, hideMeta: true },
+  pictures: { label: 'Working Pictures', icon: ImageIcon, hideMeta: true },
   admin: { label: 'Admin uploads', icon: ShieldCheck },
 }
-const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools']
+const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools', 'pictures']
 const deliveredStatuses = new Set(['delivered', 'completed'])
 const notificationKey = (order) => order ? `${order.type}:${order.id}:${order.status}` : ''
 
@@ -103,12 +106,12 @@ export default function Dashboard({ route, session, onSignOut }) {
   useEffect(() => {
     let cancelled = false
     setOrdersState('loading')
-    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders', '/api/tools'].map(async (url) => {
+    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders', '/api/tools', '/api/pictures'].map(async (url) => {
       const response = await fetch(url, { cache: 'no-store' })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
       return payload.orders || payload.tools || []
-    })).then(([logs, files, numbers, boosts, esims, tools]) => {
+    })).then(([logs, files, numbers, boosts, esims, tools, pictures]) => {
       if (cancelled) return
       const combined = [
         ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
@@ -117,6 +120,7 @@ export default function Dashboard({ route, session, onSignOut }) {
         ...boosts.map((order) => ({ id: order._id, type: 'Boosting', item: order.serviceName || 'Social media boost', status: order.status || 'pending', createdAt: order.createdAt })),
         ...esims.map((order) => ({ id: order._id, type: 'eSIM', item: `${order.planName} eSIM`, status: order.status || 'awaiting_code', createdAt: order.createdAt })),
         ...tools.filter((tool) => tool.purchased).map((tool) => ({ id: tool._id, type: 'Tool', item: tool.name, status: 'delivered', createdAt: tool.purchasedAt })),
+        ...pictures.filter((picture) => picture.purchased).map((picture) => ({ id: picture._id, type: 'Picture', item: picture.title, status: 'delivered', createdAt: picture.purchasedAt })),
       ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       setOrders(combined); setOrdersState('success')
     }).catch(() => { if (!cancelled) setOrdersState('error') })
@@ -179,6 +183,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <button className={activeService === 'format' ? 'active' : ''} onClick={() => { window.location.hash = '#account/format'; setMobileMenuOpen(false) }}><FileText /> Buy format</button>
             <button className={activeService === 'esim' ? 'active' : ''} onClick={() => { window.location.hash = '#account/esim'; setMobileMenuOpen(false) }}><Wifi /> Buy eSIM</button>
             <button className={activeService === 'tools' ? 'active' : ''} onClick={() => { window.location.hash = '#account/tools'; setMobileMenuOpen(false) }}><Wrench /> Working Tools</button>
+            <button className={activeService === 'pictures' ? 'active' : ''} onClick={() => { window.location.hash = '#account/pictures'; setMobileMenuOpen(false) }}><ImageIcon /> Working Pictures</button>
             <div className='dash-menu-group'>ACCOUNT</div>
             <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
             <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
@@ -246,7 +251,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
           </aside>}
 
-          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'esim' ? <EsimMarketplace /> : activeService === 'tools' ? <ToolsMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
+          {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'esim' ? <EsimMarketplace /> : activeService === 'tools' ? <ToolsMarketplace /> : activeService === 'pictures' ? <PicturesMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
             <div className='dash-section-title'><div><span>LIVE CATALOG</span><h2>{serviceMeta[activeService].label}</h2></div><small className='live'><i /> Available now</small></div>
             <div className='dash-product-grid'>
               {catalog[activeService].map(([title, meta, price, badge], index) => (

@@ -18,14 +18,15 @@ export async function GET() {
   }).sort({ createdAt: -1 }).limit(250).toArray()
   const userIds = users.map((user) => user._id)
 
-  const [voucherOrders, formatOrders, numberOrders, boostingOrders, esimOrders, toolOrders] = userIds.length ? await Promise.all([
+  const [voucherOrders, formatOrders, numberOrders, boostingOrders, esimOrders, toolOrders, pictureOrders] = userIds.length ? await Promise.all([
     database.collection('voucherOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('formatOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('numberOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('boostingOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('esimOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
     database.collection('toolOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
-  ]) : [[], [], [], [], [], []]
+    database.collection('pictureOrders').find({ userId: { $in: userIds } }).sort({ createdAt: -1 }).limit(1000).toArray(),
+  ]) : [[], [], [], [], [], [], []]
 
   const ordersByUser = new Map(userIds.map((id) => [String(id), []]))
   const addOrder = (userId, order) => ordersByUser.get(String(userId))?.push(order)
@@ -57,6 +58,11 @@ export async function GET() {
   toolOrders.forEach((order) => addOrder(order.userId, {
     id: String(order._id), requestId: text(order.requestId), apiOrderId: '', type: 'Tool',
     item: order.name || 'Working tool', amountKobo: Number(order.priceKobo || 0),
+    status: order.status || 'delivered', createdAt: order.createdAt,
+  }))
+  pictureOrders.forEach((order) => addOrder(order.userId, {
+    id: String(order._id), requestId: text(order.requestId), apiOrderId: '', type: 'Picture',
+    item: order.title || 'Working picture', amountKobo: Number(order.priceKobo || 0),
     status: order.status || 'delivered', createdAt: order.createdAt,
   }))
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { Ban, CircleUserRound, ExternalLink, FileText, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, Trash2, UploadCloud, UserCheck, Users, Wifi, Wrench } from 'lucide-react'
+import { Ban, CircleUserRound, ExternalLink, FileText, ImageIcon, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, Trash2, UploadCloud, UserCheck, Users, Wifi, Wrench } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -21,6 +21,8 @@ export default function AdminPanel() {
   const [esimPrices, setEsimPrices] = useState({})
   const [tools, setTools] = useState([])
   const [editingTool, setEditingTool] = useState(null)
+  const [pictures, setPictures] = useState([])
+  const [editingPicture, setEditingPicture] = useState(null)
   const [userSearch, setUserSearch] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [state, setState] = useState('idle')
@@ -32,13 +34,14 @@ export default function AdminPanel() {
   const [productPrice, setProductPrice] = useState('')
 
   const loadData = useCallback(async () => {
-    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse, toolsResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim'), fetch('/api/admin/tools')])
+    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse, toolsResponse, picturesResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim'), fetch('/api/admin/tools'), fetch('/api/admin/pictures')])
     const assetsPayload = await assetsResponse.json().catch(() => ({}))
     const vouchersPayload = await vouchersResponse.json().catch(() => ({}))
     const usersPayload = await usersResponse.json().catch(() => ({}))
     const pricingPayload = await pricingResponse.json().catch(() => ({}))
     const esimPayload = await esimResponse.json().catch(() => ({}))
     const toolsPayload = await toolsResponse.json().catch(() => ({}))
+    const picturesPayload = await picturesResponse.json().catch(() => ({}))
     if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
     if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
     if (usersResponse.ok) setUsers(usersPayload.users || [])
@@ -49,6 +52,7 @@ export default function AdminPanel() {
       setEsimPrices(Object.fromEntries(plans.map((plan) => [plan.id, plan.priceKobo ? String(plan.priceKobo / 100) : ''])))
     }
     if (toolsResponse.ok) setTools(toolsPayload.tools || [])
+    if (picturesResponse.ok) setPictures(picturesPayload.pictures || [])
   }, [])
 
   useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [loadData])
@@ -267,6 +271,51 @@ export default function AdminPanel() {
     }
   }
 
+  const savePicture = async (event) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const image = formData.get('previewImage')
+    const values = Object.fromEntries(formData)
+    delete values.previewImage
+    setState('loading'); setMessage('')
+    try {
+      let previewUrl = editingPicture?.previewUrl || ''
+      if (image instanceof File && image.size) {
+        const imageData = new FormData()
+        imageData.set('image', image)
+        const imageResponse = await fetch('/api/admin/picture-previews', { method: 'POST', body: imageData })
+        const imagePayload = await imageResponse.json().catch(() => ({}))
+        if (!imageResponse.ok) throw new Error(imagePayload.message || 'Preview upload failed')
+        previewUrl = imagePayload.previewUrl
+      }
+      if (!previewUrl) throw new Error('Choose a preview image')
+      const response = await fetch('/api/admin/pictures', {
+        method: editingPicture ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingPicture ? { ...values, previewUrl, pictureId: editingPicture._id } : { ...values, previewUrl }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to save picture')
+      form.reset(); setEditingPicture(null); setState('success'); setMessage(editingPicture ? 'Picture updated.' : 'Picture added to Working Pictures.'); await loadData()
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to save picture')
+    }
+  }
+
+  const deletePicture = async (picture) => {
+    if (!window.confirm(`Remove ${picture.title} from Working Pictures? Existing order records will remain.`)) return
+    setState('loading'); setMessage('')
+    try {
+      const response = await fetch('/api/admin/pictures', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pictureId: picture._id }) })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to remove picture')
+      setPictures((current) => current.filter((item) => item._id !== picture._id)); setEditingPicture(null); setState('success'); setMessage('Picture removed.')
+    } catch (error) {
+      setState('error'); setMessage(error.message || 'Unable to remove picture')
+    }
+  }
+
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
@@ -277,6 +326,7 @@ export default function AdminPanel() {
       <button className={tab === 'pricing' ? 'active' : ''} onClick={() => { setTab('pricing'); setMessage('') }}><SlidersHorizontal /> Pricing</button>
       <button className={tab === 'esim' ? 'active' : ''} onClick={() => { setTab('esim'); setMessage('') }}><Wifi /> eSIM</button>
       <button className={tab === 'tools' ? 'active' : ''} onClick={() => { setTab('tools'); setMessage('') }}><Wrench /> Working Tools</button>
+      <button className={tab === 'pictures' ? 'active' : ''} onClick={() => { setTab('pictures'); setMessage('') }}><ImageIcon /> Working Pictures</button>
       <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); setMessage('') }}><FileText /> Files & formats</button>
       <button className={tab === 'users' ? 'active' : ''} onClick={() => { setTab('users'); setMessage('') }}><Users /> Users</button>
     </div>
@@ -332,6 +382,23 @@ export default function AdminPanel() {
         <span><strong>{tool.name}</strong><small>{money(tool.priceKobo)} · {tool.url}</small></span>
         <div className='admin-tool-actions'><button type='button' onClick={() => { setEditingTool(tool); setMessage('') }}>Edit</button><button type='button' aria-label={`Remove ${tool.name}`} onClick={() => deleteTool(tool)}><Trash2 /></button></div>
       </article>) : <p>No website tools yet.</p>}</aside>
+    </div> : tab === 'pictures' ? <div className='admin-grid pictures-admin-grid'>
+      <form onSubmit={savePicture} key={editingPicture?._id || 'new-picture'}>
+        <div className='admin-form-title'><ImageIcon /><span><strong>{editingPicture ? 'Edit picture' : 'Add working picture'}</strong><small>Customers see the preview; the download link stays locked until payment.</small></span></div>
+        <label>Picture title<input name='title' required maxLength='120' defaultValue={editingPicture?.title || ''} placeholder='Premium workspace portrait' /></label>
+        <label>Description<textarea name='description' maxLength='500' defaultValue={editingPicture?.description || ''} placeholder='Describe the picture and what the buyer receives' /></label>
+        {editingPicture && <div className='admin-current-preview'><img src={editingPicture.previewUrl} alt='' /><span><strong>Current preview</strong><small>Choose a new file below only if you want to replace it.</small></span></div>}
+        <label className='admin-product-image'><UploadCloud /><span><strong>{editingPicture ? 'Replace preview picture' : 'Upload preview picture'}</strong><small>JPG, PNG, WebP or GIF · max 5 MB</small></span><input name='previewImage' type='file' accept='.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif' required={!editingPicture} /></label>
+        <label>Private download link<input name='downloadUrl' type='text' inputMode='url' required defaultValue={editingPicture?.downloadUrl || ''} placeholder='https://drive.example.com/full-quality-file' /></label>
+        <label>Price (NGN)<input name='price' type='number' min='0' step='50' required defaultValue={editingPicture ? Number(editingPicture.priceKobo || 0) / 100 : ''} placeholder='2500' /></label>
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <ImageIcon />}{editingPicture ? 'Save changes' : 'Publish picture'}</button>
+        {editingPicture && <button className='admin-cancel-tool' type='button' onClick={() => setEditingPicture(null)}>Cancel editing</button>}
+      </form>
+      <aside><div><span>WORKING PICTURES</span><strong>{pictures.length}</strong></div>{pictures.length ? pictures.map((picture) => <article className='admin-tool-row admin-picture-row' key={picture._id}>
+        <img src={picture.previewUrl} alt='' loading='lazy' />
+        <span><strong>{picture.title}</strong><small>{money(picture.priceKobo)} · Download link protected</small></span>
+        <div className='admin-tool-actions'><button type='button' onClick={() => { setEditingPicture(picture); setMessage('') }}>Edit</button><button type='button' aria-label={`Remove ${picture.title}`} onClick={() => deletePicture(picture)}><Trash2 /></button></div>
+      </article>) : <p>No pictures yet.</p>}</aside>
     </div> : tab === 'files' ? <div className='admin-grid'>
       <form onSubmit={uploadAsset}>
         <input name='category' type='hidden' value='formats' />
