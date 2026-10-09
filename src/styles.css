@@ -719,7 +719,7 @@ html,body { overflow-x: clip; }
   .dash-frame { min-height: 100vh; padding: 10px 10px 30px; overflow: clip; }
   .dash-nav { min-height: 58px; grid-template-columns: 1fr auto; top: 7px; padding: 6px 8px; border-radius: 15px; }
   .dash-brand .logo-mark { width: 38px; height: 29px; }.dash-brand .logo-word { font-size: 12px; }
-  .dash-nav-links { width: min(84vw,320px); height: 100dvh; position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; left: auto; display: flex; visibility: hidden; flex-direction: column; gap: 5px; padding: 14px 14px 20px; border: 0; border-left: 1px solid #e7e1d8; border-radius: 0; background: #fffdf9; box-shadow: -16px 0 40px rgba(61,48,36,.18); opacity: 0; transform: translateX(100%); pointer-events: none; transition: transform .24s ease,opacity .2s ease,visibility .24s; }
+  .dash-nav-links { width: min(84vw,320px); height: 100dvh; position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; left: auto; display: flex; visibility: hidden; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; flex-direction: column; gap: 5px; padding: 14px 14px 20px; border: 0; border-left: 1px solid #e7e1d8; border-radius: 0; background: #fffdf9; box-shadow: -16px 0 40px rgba(61,48,36,.18); opacity: 0; transform: translateX(100%); pointer-events: none; transition: transform .24s ease,opacity .2s ease,visibility .24s; -webkit-overflow-scrolling: touch; }
   .dash-nav-links.open { visibility: visible; opacity: 1; transform: translateX(0); pointer-events: auto; }
   .dash-mobile-menu-head { min-height: 54px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 0 2px 12px; border-bottom: 1px solid #eee7dd; }
   .dash-mobile-menu-head .logo { color: #292927; }
