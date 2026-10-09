@@ -174,21 +174,23 @@ export default function Dashboard({ route, session, onSignOut }) {
               <a className='logo' href='#top' onClick={() => setMobileMenuOpen(false)}><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
-            <button className={!activeService ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
-            <button onClick={() => { openFunding(); setMobileMenuOpen(false) }}><WalletCards /> Fund wallet</button>
-            <div className='dash-menu-group'>SERVICES</div>
-            <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
-            <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
-            <button className={activeService === 'logs' ? 'active' : ''} onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
-            <button className={activeService === 'format' ? 'active' : ''} onClick={() => { window.location.hash = '#account/format'; setMobileMenuOpen(false) }}><FileText /> Buy format</button>
-            <button className={activeService === 'esim' ? 'active' : ''} onClick={() => { window.location.hash = '#account/esim'; setMobileMenuOpen(false) }}><Wifi /> Buy eSIM</button>
-            <button className={activeService === 'tools' ? 'active' : ''} onClick={() => { window.location.hash = '#account/tools'; setMobileMenuOpen(false) }}><Wrench /> Working Tools</button>
-            <button className={activeService === 'pictures' ? 'active' : ''} onClick={() => { window.location.hash = '#account/pictures'; setMobileMenuOpen(false) }}><ImageIcon /> Working Pictures</button>
-            <div className='dash-menu-group'>ACCOUNT</div>
-            <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
-            <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
-            {user.isAdmin && <button className={activeService === 'admin' ? 'active' : ''} onClick={() => { window.location.hash = '#account/admin'; setMobileMenuOpen(false) }}><ShieldCheck /> Admin uploads</button>}
-            <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
+            <div className='dash-mobile-menu-scroll'>
+              <button className={!activeService ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
+              <button onClick={() => { openFunding(); setMobileMenuOpen(false) }}><WalletCards /> Fund wallet</button>
+              <div className='dash-menu-group'>SERVICES</div>
+              <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
+              <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
+              <button className={activeService === 'logs' ? 'active' : ''} onClick={() => { window.location.hash = '#account/logs'; setMobileMenuOpen(false) }}><CircleUserRound /> Buy logs</button>
+              <button className={activeService === 'format' ? 'active' : ''} onClick={() => { window.location.hash = '#account/format'; setMobileMenuOpen(false) }}><FileText /> Buy format</button>
+              <button className={activeService === 'esim' ? 'active' : ''} onClick={() => { window.location.hash = '#account/esim'; setMobileMenuOpen(false) }}><Wifi /> Buy eSIM</button>
+              <button className={activeService === 'tools' ? 'active' : ''} onClick={() => { window.location.hash = '#account/tools'; setMobileMenuOpen(false) }}><Wrench /> Working Tools</button>
+              <button className={activeService === 'pictures' ? 'active' : ''} onClick={() => { window.location.hash = '#account/pictures'; setMobileMenuOpen(false) }}><ImageIcon /> Working Pictures</button>
+              <div className='dash-menu-group'>ACCOUNT</div>
+              <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
+              <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
+              {user.isAdmin && <button className={activeService === 'admin' ? 'active' : ''} onClick={() => { window.location.hash = '#account/admin'; setMobileMenuOpen(false) }}><ShieldCheck /> Admin uploads</button>}
+              <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
+            </div>
           </div>
           <div className='dash-actions'>
             <button className='notification-trigger' aria-label={hasUnreadNotifications ? 'Notifications, new activity' : 'Notifications'} aria-controls='dashboard-notifications' aria-expanded={notificationOpen} onClick={toggleNotifications}><Bell />{hasUnreadNotifications && <i />}</button>
