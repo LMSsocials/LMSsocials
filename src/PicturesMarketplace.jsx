@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowDownToLine, Check, ImageIcon, LoaderCircle, LockKeyhole, Search, ShoppingBag } from 'lucide-react'
+import { ArrowDownToLine, Check, ImageIcon, LoaderCircle, Search, ShoppingBag } from 'lucide-react'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 const requestId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -47,7 +47,7 @@ export default function PicturesMarketplace() {
     {state === 'success' && !visiblePictures.length && <div className='pictures-empty'><ImageIcon /><strong>No pictures available</strong><span>New previews will appear here when they are published.</span></div>}
     {state === 'success' && visiblePictures.length > 0 && <div className='pictures-grid'>{visiblePictures.map((picture) => <article key={picture._id}>
       <div className='picture-preview'><img src={picture.previewUrl} alt={`Preview of ${picture.title}`} loading='lazy' /><span><ImageIcon /> Preview</span></div>
-      <div className='picture-copy'><small>{picture.purchased ? <><Check /> PURCHASED</> : <><LockKeyhole /> LINK LOCKED</>}</small><h3>{picture.title}</h3><p>{picture.description || 'Full-quality picture download.'}</p></div>
+      <div className='picture-copy'>{picture.purchased && <small><Check /> PURCHASED</small>}<h3>{picture.title}</h3><p>{picture.description || 'Full-quality picture download.'}</p></div>
       <footer><strong>{picture.priceKobo ? money(picture.priceKobo) : 'Free'}</strong>{picture.purchased
         ? <a href={picture.downloadUrl} target='_blank' rel='noopener noreferrer'><ArrowDownToLine /> Download</a>
         : <button type='button' disabled={Boolean(buying)} onClick={() => purchase(picture)}>{buying === picture._id ? <LoaderCircle className='spin' /> : <ShoppingBag />} Buy picture</button>}</footer>
