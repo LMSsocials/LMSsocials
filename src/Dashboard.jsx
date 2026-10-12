@@ -69,6 +69,7 @@ export default function Dashboard({ route, session, onSignOut }) {
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [scrollTarget, setScrollTarget] = useState('')
   const user = session.user
   const [balance, setBalance] = useState(Number(user.balance || 0))
   const [fundOpen, setFundOpen] = useState(false)
@@ -86,6 +87,22 @@ export default function Dashboard({ route, session, onSignOut }) {
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  function openDashboardSection(id) {
+    setMobileMenuOpen(false)
+    setNotificationOpen(false)
+    setScrollTarget(id)
+    window.location.hash = '#account'
+  }
+
+  useEffect(() => {
+    if (!scrollTarget || route !== '#account') return undefined
+    const frame = window.requestAnimationFrame(() => {
+      goTo(scrollTarget)
+      setScrollTarget('')
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [route, scrollTarget])
 
   useEffect(() => {
     const closeMenu = (event) => {
@@ -186,7 +203,7 @@ export default function Dashboard({ route, session, onSignOut }) {
               <button className={activeService === 'tools' ? 'active' : ''} onClick={() => { window.location.hash = '#account/tools'; setMobileMenuOpen(false) }}><Wrench /> Working Tools</button>
               <button className={activeService === 'pictures' ? 'active' : ''} onClick={() => { window.location.hash = '#account/pictures'; setMobileMenuOpen(false) }}><ImageIcon /> Working Pictures</button>
               <div className='dash-menu-group'>ACCOUNT</div>
-              <button onClick={() => { goTo('orders'); setMobileMenuOpen(false) }}><ReceiptText /> Order history</button>
+              <button onClick={() => openDashboardSection('orders')}><ReceiptText /> Order history</button>
               <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
               {user.isAdmin && <button className={activeService === 'admin' ? 'active' : ''} onClick={() => { window.location.hash = '#account/admin'; setMobileMenuOpen(false) }}><ShieldCheck /> Admin uploads</button>}
               <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
@@ -207,7 +224,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             {ordersState === 'success' && !notificationOrders.length && <p><Bell /> You have no notifications yet.</p>}
             {ordersState === 'success' && notificationOrders.map((order) => <article key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><strong>{order.type}: {order.item}</strong><small>{order.status} · {orderDate(order.createdAt)}</small></span></article>)}
           </div>
-          {notificationOrders.length > 0 && <button className='notification-history' type='button' onClick={() => { setNotificationOpen(false); window.location.hash = '#account'; window.setTimeout(() => goTo('orders'), 50) }}>View recent orders <ArrowRight /></button>}
+          {notificationOrders.length > 0 && <button className='notification-history' type='button' onClick={() => openDashboardSection('orders')}>View recent orders <ArrowRight /></button>}
         </section></>}
         {mobileMenuOpen && <button className='dash-menu-backdrop' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)} />}
         {fundOpen && <div className='fund-modal-backdrop' role='presentation' onMouseDown={() => fundState !== 'loading' && setFundOpen(false)}><section className='fund-modal' role='dialog' aria-modal='true' aria-labelledby='fund-wallet-title' onMouseDown={(event) => event.stopPropagation()}>

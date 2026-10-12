@@ -29,6 +29,8 @@ export default function LogsMarketplace() {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [quantity, setQuantity] = useState(1)
   const [checkoutError, setCheckoutError] = useState('')
+  const [completedOrder, setCompletedOrder] = useState(null)
+  const [deliveryCopied, setDeliveryCopied] = useState(false)
 
   const load = async () => {
     setState('loading')
@@ -69,17 +71,41 @@ export default function LogsMarketplace() {
     return Array.from(grouped, ([label, sectionProducts]) => ({ label, products: sectionProducts })).sort((a, b) => a.label.localeCompare(b.label))
   }, [category, visibleProducts])
 
+  const pendingOrderId = completedOrder?.status === 'processing' && !completedOrder.code ? completedOrder._id : ''
+  useEffect(() => {
+    if (!pendingOrderId) return undefined
+    let cancelled = false
+    const refreshDelivery = async () => {
+      try {
+        const response = await fetch('/api/voucher-orders')
+        const payload = await response.json()
+        if (!response.ok || cancelled) return
+        const refreshedOrder = (payload.orders || []).find((order) => order._id === pendingOrderId)
+        if (!refreshedOrder) return
+        setOrders(payload.orders)
+        if (refreshedOrder.code) setCompletedOrder(refreshedOrder)
+      } catch { /* The next automatic refresh will retry. */ }
+    }
+    refreshDelivery()
+    const timer = window.setInterval(refreshDelivery, 4000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [pendingOrderId])
+
   function openCheckout(product) {
     if (!product.stockCount || buying) return
     setSelectedProduct(product)
     setQuantity(1)
     setCheckoutError('')
+    setCompletedOrder(null)
+    setDeliveryCopied(false)
   }
 
   function closeCheckout() {
     if (buying) return
     setSelectedProduct(null)
     setCheckoutError('')
+    setCompletedOrder(null)
+    setDeliveryCopied(false)
   }
 
   async function purchase(product, purchaseQuantity) {
@@ -96,8 +122,8 @@ export default function LogsMarketplace() {
       if (!response.ok) throw new Error(payload.message || 'Purchase failed')
       setOrders((current) => [payload.order, ...current])
       setProducts((current) => current.map((item) => item._id === product._id ? { ...item, stockCount: Math.max(0, item.stockCount - purchaseQuantity) } : item))
-      setMessage(`${purchaseQuantity} ${purchaseQuantity === 1 ? 'log is' : 'logs are'} now available in order history.`)
-      setSelectedProduct(null)
+      setMessage('')
+      setCompletedOrder(payload.order)
       window.dispatchEvent(new CustomEvent('wallet-balance', { detail: payload.balance }))
     } catch (error) { setCheckoutError(error.message) }
     finally { setBuying('') }
@@ -105,6 +131,7 @@ export default function LogsMarketplace() {
 
   async function copyCode(code) {
     await navigator.clipboard.writeText(code)
+    setDeliveryCopied(true)
     setMessage('Access code copied.')
   }
 
@@ -139,10 +166,18 @@ export default function LogsMarketplace() {
       {selectedProduct && <div className='log-checkout-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout() }}>
         <section className='log-checkout' role='dialog' aria-modal='true' aria-labelledby='log-checkout-title'>
           <header>
-            <div><span>PURCHASE CONFIGURATION</span><h2 id='log-checkout-title'>{selectedProduct.title}</h2><p>{money(selectedProduct.priceKobo)} per log · {selectedProduct.stockCount} available</p></div>
+            <div><span>{completedOrder ? 'PURCHASE COMPLETE' : 'PURCHASE CONFIGURATION'}</span><h2 id='log-checkout-title'>{completedOrder?.productTitle || selectedProduct.title}</h2><p>{completedOrder ? `${completedOrder.quantity || quantity} ${(completedOrder.quantity || quantity) === 1 ? 'log' : 'logs'} purchased · ${money(completedOrder.priceKobo)}` : `${money(selectedProduct.priceKobo)} per log · ${selectedProduct.stockCount} available`}</p></div>
             <button type='button' onClick={closeCheckout} aria-label='Close checkout'><X /></button>
           </header>
-          <div className='log-checkout-body'>
+          {completedOrder ? <div className='log-delivery-body'>
+            <div className='log-delivery-success'><BadgeCheck /><div><h3>Purchase successful</h3><p>Your purchased login details are displayed immediately below.</p></div></div>
+            {completedOrder.code ? <div className='log-delivery-details'>
+              <span>YOUR LOG DETAILS</span>
+              <pre>{completedOrder.code}</pre>
+              <button type='button' onClick={() => copyCode(completedOrder.code)}><Copy />{deliveryCopied ? 'Copied' : 'Copy all details'}</button>
+            </div> : <div className='log-delivery-processing'><LoaderCircle className='spin' /><div><strong>Preparing your log details</strong><p>Keep this checkout open. Your details will appear here automatically as soon as delivery completes.</p></div></div>}
+            <button className='log-delivery-done' type='button' onClick={closeCheckout}>Close</button>
+          </div> : <div className='log-checkout-body'>
             <label>Select quantity</label>
             <div className='log-quantity-picker'>
               <button type='button' onClick={() => setQuantity((current) => Math.max(1, current - 1))} disabled={quantity <= 1 || Boolean(buying)} aria-label='Decrease quantity'><Minus /></button>
@@ -156,7 +191,7 @@ export default function LogsMarketplace() {
             </div>
             {checkoutError && <p className='log-checkout-error'>{checkoutError}</p>}
             <button className='log-confirm-purchase' type='button' disabled={Boolean(buying)} onClick={() => purchase(selectedProduct, quantity)}>{buying ? <LoaderCircle className='spin' /> : <ShoppingBag />} {buying ? 'Completing purchase…' : `Confirm purchase · ${money(selectedProduct.priceKobo * quantity)}`}</button>
-          </div>
+          </div>}
         </section>
       </div>}
 
