@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '../../../lib/mongodb'
-import { LOG_PRICE_RULES_VERSION, logCategory, sujanCatalog } from '../../../lib/log-providers'
+import { isHiddenLogProduct, LOG_PRICE_RULES_VERSION, logCategory, sujanCatalog } from '../../../lib/log-providers'
 import { getSupplierPricing } from '../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
@@ -35,7 +35,8 @@ export async function GET() {
   const products = [
     ...managed.map((product) => ({ ...product, _id: `managed:${product._id}`, source: 'managed', brand: 'LMS Socials' })),
     ...sujanItems,
-  ].sort((a, b) => Number(b.source === 'managed') - Number(a.source === 'managed') || a.category.localeCompare(b.category) || a.title.localeCompare(b.title))
+  ].filter((product) => !isHiddenLogProduct(product.title))
+    .sort((a, b) => Number(b.source === 'managed') - Number(a.source === 'managed') || a.category.localeCompare(b.category) || a.title.localeCompare(b.title))
 
   return NextResponse.json({ products: products.map((product) => {
     const category = logCategory(product.category, product.brand, product.title)

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, BadgeCheck, Copy, CircleUserRound, LoaderCircle, PackageOpen, Search, ShoppingBag } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Copy, CircleUserRound, LoaderCircle, Minus, PackageOpen, Plus, Search, ShoppingBag, X } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -26,6 +26,9 @@ export default function LogsMarketplace() {
   const [state, setState] = useState('loading')
   const [buying, setBuying] = useState('')
   const [message, setMessage] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [quantity, setQuantity] = useState(1)
+  const [checkoutError, setCheckoutError] = useState('')
 
   const load = async () => {
     setState('loading')
@@ -66,22 +69,37 @@ export default function LogsMarketplace() {
     return Array.from(grouped, ([label, sectionProducts]) => ({ label, products: sectionProducts })).sort((a, b) => a.label.localeCompare(b.label))
   }, [category, visibleProducts])
 
-  async function purchase(product) {
+  function openCheckout(product) {
+    if (!product.stockCount || buying) return
+    setSelectedProduct(product)
+    setQuantity(1)
+    setCheckoutError('')
+  }
+
+  function closeCheckout() {
+    if (buying) return
+    setSelectedProduct(null)
+    setCheckoutError('')
+  }
+
+  async function purchase(product, purchaseQuantity) {
     if (!product.stockCount || buying) return
     setBuying(product._id)
     setMessage('')
+    setCheckoutError('')
     try {
       const response = await fetch('/api/voucher-orders', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product._id, requestId: requestId() }),
+        body: JSON.stringify({ productId: product._id, quantity: purchaseQuantity, requestId: requestId() }),
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.message || 'Purchase failed')
       setOrders((current) => [payload.order, ...current])
-      setProducts((current) => current.map((item) => item._id === product._id ? { ...item, stockCount: Math.max(0, item.stockCount - 1) } : item))
-      setMessage('Purchase complete. Your log is now available in order history.')
+      setProducts((current) => current.map((item) => item._id === product._id ? { ...item, stockCount: Math.max(0, item.stockCount - purchaseQuantity) } : item))
+      setMessage(`${purchaseQuantity} ${purchaseQuantity === 1 ? 'log is' : 'logs are'} now available in order history.`)
+      setSelectedProduct(null)
       window.dispatchEvent(new CustomEvent('wallet-balance', { detail: payload.balance }))
-    } catch (error) { setMessage(error.message) }
+    } catch (error) { setCheckoutError(error.message) }
     finally { setBuying('') }
   }
 
@@ -111,17 +129,41 @@ export default function LogsMarketplace() {
             <div className='voucher-image'>{product.imageUrl ? <img src={product.imageUrl} alt='' /> : <SocialIcon category={product.category} title={product.title} />}</div>
             <div className='voucher-card-copy'><span>{product.brand}</span><h3>{product.title}</h3><p>{product.description || 'Digital product delivered after checkout.'}{product.quantity > 1 ? ` Includes ${product.quantity} accounts.` : ''}</p></div>
             <div className='voucher-stock'><PackageOpen /><span><strong>{product.stockCount}</strong><small>available</small></span></div>
-            <footer><strong>{money(product.priceKobo)}</strong><button disabled={!product.stockCount || Boolean(buying)} onClick={() => purchase(product)}>{buying === product._id ? <LoaderCircle className='spin' /> : <ShoppingBag />}{product.stockCount ? 'Buy now' : 'Sold out'} <ArrowRight /></button></footer>
+            <footer><strong>{money(product.priceKobo)}</strong><button disabled={!product.stockCount || Boolean(buying)} onClick={() => openCheckout(product)}><ShoppingBag />{product.stockCount ? 'Buy now' : 'Sold out'} <ArrowRight /></button></footer>
           </article>
           ))}</div>
         </section>)}
         {!visibleProducts.length && <div className='logs-empty'><CircleUserRound /><strong>No logs found</strong><span>Try another search or category.</span></div>}
       </div>}
 
+      {selectedProduct && <div className='log-checkout-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout() }}>
+        <section className='log-checkout' role='dialog' aria-modal='true' aria-labelledby='log-checkout-title'>
+          <header>
+            <div><span>PURCHASE CONFIGURATION</span><h2 id='log-checkout-title'>{selectedProduct.title}</h2><p>{money(selectedProduct.priceKobo)} per log · {selectedProduct.stockCount} available</p></div>
+            <button type='button' onClick={closeCheckout} aria-label='Close checkout'><X /></button>
+          </header>
+          <div className='log-checkout-body'>
+            <label>Select quantity</label>
+            <div className='log-quantity-picker'>
+              <button type='button' onClick={() => setQuantity((current) => Math.max(1, current - 1))} disabled={quantity <= 1 || Boolean(buying)} aria-label='Decrease quantity'><Minus /></button>
+              <input type='number' min='1' max={Math.min(100, selectedProduct.stockCount)} value={quantity} onChange={(event) => setQuantity(Math.max(1, Math.min(100, selectedProduct.stockCount, Number(event.target.value) || 1)))} aria-label='Quantity' />
+              <button type='button' onClick={() => setQuantity((current) => Math.min(100, selectedProduct.stockCount, current + 1))} disabled={quantity >= Math.min(100, selectedProduct.stockCount) || Boolean(buying)} aria-label='Increase quantity'><Plus /></button>
+            </div>
+            <div className='log-checkout-summary'>
+              <p><span>Subtotal</span><strong>{money(selectedProduct.priceKobo * quantity)}</strong></p>
+              <p><span>Service fee</span><strong>{money(0)}</strong></p>
+              <p className='total'><span>Total</span><strong>{money(selectedProduct.priceKobo * quantity)}</strong></p>
+            </div>
+            {checkoutError && <p className='log-checkout-error'>{checkoutError}</p>}
+            <button className='log-confirm-purchase' type='button' disabled={Boolean(buying)} onClick={() => purchase(selectedProduct, quantity)}>{buying ? <LoaderCircle className='spin' /> : <ShoppingBag />} {buying ? 'Completing purchase…' : `Confirm purchase · ${money(selectedProduct.priceKobo * quantity)}`}</button>
+          </div>
+        </section>
+      </div>}
+
       <section className='voucher-orders'>
         <div className='dash-section-title'><div><span>ORDER HISTORY</span><h2>Your purchased logs</h2></div><small>{orders.length}</small></div>
         {orders.length ? <div className='voucher-order-grid'>{orders.map((order) => <article key={order._id}>
-          <div><CircleUserRound /><span><strong>{order.productTitle}</strong><small>{order.brand} · {new Date(order.createdAt).toLocaleDateString()}</small></span></div>
+          <div><CircleUserRound /><span><strong>{order.productTitle}</strong><small>{order.brand} · Qty {order.quantity || 1} · {new Date(order.createdAt).toLocaleDateString()}</small></span></div>
           <label><span>{order.status === 'processing' ? 'DELIVERY STATUS' : 'YOUR ACCESS CODE'}</span><strong>{order.code || (order.status === 'processing' ? 'Processing — refresh shortly' : 'Contact support')}</strong><button onClick={() => copyCode(order.code)} disabled={!order.code} aria-label='Copy access code'><Copy /></button></label>
         </article>)}</div> : <div className='logs-empty'><ShoppingBag /><strong>No log orders yet</strong><span>Your purchased codes will appear here.</span></div>}
       </section>

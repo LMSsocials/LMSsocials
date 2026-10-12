@@ -28,16 +28,17 @@ export async function GET() {
     await orderCollection.updateOne({ _id: order._id, status: 'processing' }, { $set: { ...encryptVoucherCode(code), status: 'delivered', deliveredAt: new Date(), updatedAt: new Date() } })
   }))
   if (pendingBulk.length) orders = await orderCollection.find({ userId, status: { $in: ['delivered', 'processing'] } }).sort({ createdAt: -1 }).limit(100).toArray()
-  const inventoryIds = orders.map((order) => order.inventoryItemId)
+  const inventoryIds = orders.flatMap((order) => order.inventoryItemIds?.length ? order.inventoryItemIds : [order.inventoryItemId]).filter(Boolean)
   const items = inventoryIds.length ? await database.collection('voucherInventory').find({ _id: { $in: inventoryIds }, purchasedBy: userId }).toArray() : []
   const itemMap = new Map(items.map((item) => [String(item._id), item]))
   return NextResponse.json({
     orders: orders.map((order) => {
-      const item = itemMap.get(String(order.inventoryItemId))
+      const deliveredItems = (order.inventoryItemIds?.length ? order.inventoryItemIds : [order.inventoryItemId])
+        .map((id) => itemMap.get(String(id))).filter(Boolean)
       return {
         _id: String(order._id), productId: String(order.productId), productTitle: order.productTitle,
-        brand: order.brand, priceKobo: order.priceKobo, createdAt: order.createdAt, status: order.status,
-        code: item ? decryptVoucherCode(item) : order.encryptedCode ? decryptVoucherCode(order) : null,
+        brand: order.brand, quantity: order.quantity || deliveredItems.length || 1, priceKobo: order.priceKobo, createdAt: order.createdAt, status: order.status,
+        code: deliveredItems.length ? deliveredItems.map(decryptVoucherCode).join('\n') : order.encryptedCode ? decryptVoucherCode(order) : null,
       }
     }),
   })
@@ -48,12 +49,13 @@ export async function POST(request) {
   if (!userId) return NextResponse.json({ message: 'Authentication required' }, { status: 401 })
   const body = await request.json().catch(() => ({}))
   const productReference = String(body.productId || '')
+  const quantity = Number(body.quantity ?? 1)
   const [source, sourceId] = productReference.includes(':') ? productReference.split(/:(.+)/) : ['managed', productReference]
-  if (!['managed', 'sujan'].includes(source) || !sourceId || !/^[a-zA-Z0-9-]{16,80}$/.test(String(body.requestId || ''))) {
+  if (!['managed', 'sujan'].includes(source) || !sourceId || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100 || !/^[a-zA-Z0-9-]{16,80}$/.test(String(body.requestId || ''))) {
     return NextResponse.json({ message: 'Invalid purchase request' }, { status: 400 })
   }
 
-  if (source !== 'managed') return purchaseSupplierProduct({ userId, source, sourceId, requestId: String(body.requestId) })
+  if (source !== 'managed') return purchaseSupplierProduct({ userId, source, sourceId, requestId: String(body.requestId), quantity })
   if (!ObjectId.isValid(sourceId)) return NextResponse.json({ message: 'Invalid purchase request' }, { status: 400 })
 
   const productId = new ObjectId(sourceId)
@@ -75,40 +77,44 @@ export async function POST(request) {
   const orderId = new ObjectId()
   const now = new Date()
   const session = client.startSession()
-  let deliveredItem
+  let deliveredItems = []
   let balanceAfterKobo
   let purchasedProduct
+  let totalPriceKobo
   try {
     await session.withTransaction(async () => {
-      purchasedProduct = await products.findOne({ _id: productId, isPublished: true, stockCount: { $gt: 0 } }, { session })
+      purchasedProduct = await products.findOne({ _id: productId, isPublished: true, stockCount: { $gte: quantity } }, { session })
       if (!purchasedProduct) throw new Error('OUT_OF_STOCK')
+      totalPriceKobo = purchasedProduct.priceKobo * quantity
 
-      deliveredItem = await inventory.findOneAndUpdate(
-        { productId, isSold: false },
+      deliveredItems = await inventory.find({ productId, isSold: false }, { session }).sort({ createdAt: 1 }).limit(quantity).toArray()
+      if (deliveredItems.length !== quantity) throw new Error('OUT_OF_STOCK')
+      const inventoryResult = await inventory.updateMany(
+        { _id: { $in: deliveredItems.map((item) => item._id) }, isSold: false },
         { $set: { isSold: true, purchasedBy: userId, orderId, soldAt: now, updatedAt: now } },
-        { sort: { createdAt: 1 }, returnDocument: 'after', session },
+        { session },
       )
-      if (!deliveredItem) throw new Error('OUT_OF_STOCK')
+      if (inventoryResult.modifiedCount !== quantity) throw new Error('OUT_OF_STOCK')
 
       const user = await users.findOneAndUpdate(
-        { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: purchasedProduct.priceKobo } },
-        { $inc: { balanceKobo: -purchasedProduct.priceKobo }, $set: { updatedAt: now, balanceCurrency: 'NGN' } },
+        { _id: userId, isBanned: { $ne: true }, balanceKobo: { $gte: totalPriceKobo } },
+        { $inc: { balanceKobo: -totalPriceKobo }, $set: { updatedAt: now, balanceCurrency: 'NGN' } },
         { returnDocument: 'after', session },
       )
       if (!user) throw new Error('INSUFFICIENT_BALANCE')
       balanceAfterKobo = user.balanceKobo
 
       const stockResult = await products.updateOne(
-        { _id: productId, stockCount: { $gt: 0 } },
-        { $inc: { stockCount: -1 }, $set: { updatedAt: now } },
+        { _id: productId, stockCount: { $gte: quantity } },
+        { $inc: { stockCount: -quantity }, $set: { updatedAt: now } },
         { session },
       )
       if (stockResult.modifiedCount !== 1) throw new Error('OUT_OF_STOCK')
 
       await orders.insertOne({
-        _id: orderId, requestId, userId, productId, inventoryItemId: deliveredItem._id,
+        _id: orderId, requestId, userId, productId, inventoryItemIds: deliveredItems.map((item) => item._id),
         productTitle: purchasedProduct.title, brand: purchasedProduct.brand,
-        priceKobo: purchasedProduct.priceKobo, balanceAfterKobo, status: 'delivered', createdAt: now, updatedAt: now,
+        quantity, unitPriceKobo: purchasedProduct.priceKobo, priceKobo: totalPriceKobo, balanceAfterKobo, status: 'delivered', createdAt: now, updatedAt: now,
       }, { session })
     })
   } catch (error) {
@@ -124,19 +130,22 @@ export async function POST(request) {
   return NextResponse.json({
     order: {
       _id: String(orderId), productId: String(productId), productTitle: purchasedProduct.title,
-      brand: purchasedProduct.brand, priceKobo: purchasedProduct.priceKobo, createdAt: now,
-      code: decryptVoucherCode(deliveredItem),
+      brand: purchasedProduct.brand, quantity, unitPriceKobo: purchasedProduct.priceKobo, priceKobo: totalPriceKobo, createdAt: now,
+      code: deliveredItems.map(decryptVoucherCode).join('\n'),
     },
     balance: balanceAfterKobo / 100,
   }, { status: 201 })
 }
 
-async function purchaseSupplierProduct({ userId, source, sourceId, requestId }) {
+async function purchaseSupplierProduct({ userId, source, sourceId, requestId, quantity }) {
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
   let product
-  try { product = await sujanProduct(sourceId, pricing) }
-  catch (error) { return NextResponse.json({ message: error.message === 'OUT_OF_STOCK' ? 'This product is sold out' : 'Unable to verify supplier stock' }, { status: error.message === 'OUT_OF_STOCK' ? 409 : 502 }) }
+  try { product = await sujanProduct(sourceId, pricing, quantity) }
+  catch (error) {
+    if (error.message === 'INVALID_QUANTITY') return NextResponse.json({ message: 'Choose a valid quantity' }, { status: 400 })
+    return NextResponse.json({ message: error.message === 'OUT_OF_STOCK' ? 'The requested quantity is no longer available' : 'Unable to verify supplier stock' }, { status: error.message === 'OUT_OF_STOCK' ? 409 : 502 })
+  }
 
   const client = await getMongoClient()
   const users = database.collection('users')
@@ -160,7 +169,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId }) 
       balanceAfterKobo = user.balanceKobo
       await orders.insertOne({
         _id: orderId, requestId, userId, source, providerProductId: sourceId, productTitle: product.title,
-        brand: 'Marketplace', quantity: product.quantity,
+        brand: 'Marketplace', quantity: product.quantity, unitPriceKobo: product.unitPriceKobo,
         priceKobo: product.priceKobo, balanceAfterKobo, status: 'supplier_reserved', createdAt: now, updatedAt: now,
       }, { session })
     })
@@ -191,7 +200,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId }) 
     ...(delivery.credentials ? { deliveredAt: new Date() } : {}), updatedAt: new Date(),
   } })
   return NextResponse.json({
-    order: { _id: String(orderId), productId: productReference(source, sourceId), productTitle: product.title, brand: 'Marketplace', priceKobo: product.priceKobo, createdAt: now, status, code: delivery.credentials || null },
+    order: { _id: String(orderId), productId: productReference(source, sourceId), productTitle: product.title, brand: 'Marketplace', quantity: product.quantity, unitPriceKobo: product.unitPriceKobo, priceKobo: product.priceKobo, createdAt: now, status, code: delivery.credentials || null },
     balance: balanceAfterKobo / 100,
   }, { status: 201 })
 }

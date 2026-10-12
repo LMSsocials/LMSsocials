@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, logCategory } from '../lib/log-providers.js'
+import { applyLogPriceRules, isHiddenLogProduct, logCategory } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
     ['MICROSOFT TEXTPLUS (Read Rules)', 270000],
-    ['MICROSOFT NEXTPLUS (Read Rules)', 220000],
+    ['MICROSOFT NEXTPLUS (Login Video in Telegram)', 290000],
     ['OLD GOOGLE VOICE (TEXT AND CALL)', 860000],
     ['NEW GOOGLE VOICE (ONLY CALL)', 670000],
     ['9 PROXY = 40 ip', 750000],
@@ -20,13 +20,20 @@ test('Fixed log prices match the storefront price list', () => {
     ['Clone X Twitter | Reg Phone Ultra | Reg Hotmail Trust | FULL 2FA', 230000],
     ['X Twitter USA Old | Year 2011 | Hotmail | FULL 2FA', 490000],
     ['X Twitter United Kingdom Stock | Year 2011 | Hotmail | FULL 2FA', 490000],
-    ['USA FACEBOOK PAGE CREATE ALREADY', 450000],
+    ['Clone X Old Twitter | 2021-2024 | Yopmail | FULL 2FA', 600000],
+    ['USA FACEBOOK PAGE CREATE ALREADY', 800000],
     ['RANDOM FB PAGE CREATED YOURSELF', 390000],
   ]
 
   for (const [title, expectedPrice] of cases) {
     assert.equal(applyLogPriceRules(title, 100), expectedPrice, title)
   }
+})
+
+test('Removed supplier listings stay hidden', () => {
+  assert.equal(isHiddenLogProduct('OLD GMAIL 2025'), true)
+  assert.equal(isHiddenLogProduct('RANDOM FB PAGE CREATED YOURSELF'), true)
+  assert.equal(isHiddenLogProduct('USA FACEBOOK PAGE CREATE ALREADY'), false)
 })
 
 test('Log products are grouped under their actual platforms', () => {
