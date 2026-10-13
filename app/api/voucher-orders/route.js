@@ -4,7 +4,7 @@ import { ObjectId } from 'mongodb'
 import { getDatabase, getMongoClient } from '../../../lib/mongodb'
 import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
 import { decryptVoucherCode, encryptVoucherCode } from '../../../lib/voucher-crypto'
-import { placeSujanOrder, retrieveBulkOrder, sujanProduct } from '../../../lib/log-providers'
+import { bulkProduct, placeBulkOrder, placeSujanOrder, retrieveBulkOrder, sujanProduct } from '../../../lib/log-providers'
 import { getSupplierPricing } from '../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
@@ -51,7 +51,7 @@ export async function POST(request) {
   const productReference = String(body.productId || '')
   const quantity = Number(body.quantity ?? 1)
   const [source, sourceId] = productReference.includes(':') ? productReference.split(/:(.+)/) : ['managed', productReference]
-  if (!['managed', 'sujan'].includes(source) || !sourceId || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100 || !/^[a-zA-Z0-9-]{16,80}$/.test(String(body.requestId || ''))) {
+  if (!['managed', 'sujan', 'bulkacc'].includes(source) || !sourceId || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100 || !/^[a-zA-Z0-9-]{16,80}$/.test(String(body.requestId || ''))) {
     return NextResponse.json({ message: 'Invalid purchase request' }, { status: 400 })
   }
 
@@ -141,7 +141,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId, qu
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
   let product
-  try { product = await sujanProduct(sourceId, pricing, quantity) }
+  try { product = source === 'bulkacc' ? await bulkProduct(sourceId, quantity) : await sujanProduct(sourceId, pricing, quantity) }
   catch (error) {
     if (error.message === 'INVALID_QUANTITY') return NextResponse.json({ message: 'Choose a valid quantity' }, { status: 400 })
     return NextResponse.json({ message: error.message === 'OUT_OF_STOCK' ? 'The requested quantity is no longer available' : 'Unable to verify supplier stock' }, { status: error.message === 'OUT_OF_STOCK' ? 409 : 502 })
@@ -169,7 +169,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId, qu
       balanceAfterKobo = user.balanceKobo
       await orders.insertOne({
         _id: orderId, requestId, userId, source, providerProductId: sourceId, productTitle: product.title,
-        brand: 'Marketplace', quantity: product.quantity, unitPriceKobo: product.unitPriceKobo,
+        brand: product.category || 'Marketplace', quantity: product.quantity, unitPriceKobo: product.unitPriceKobo,
         priceKobo: product.priceKobo, balanceAfterKobo, status: 'supplier_reserved', createdAt: now, updatedAt: now,
       }, { session })
     })
@@ -182,7 +182,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId, qu
   await session.endSession()
 
   let delivery
-  try { delivery = await placeSujanOrder(product) }
+  try { delivery = source === 'bulkacc' ? await placeBulkOrder(product) : await placeSujanOrder(product) }
   catch (error) {
     const refundSession = client.startSession()
     try {
@@ -200,7 +200,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId, qu
     ...(delivery.credentials ? { deliveredAt: new Date() } : {}), updatedAt: new Date(),
   } })
   return NextResponse.json({
-    order: { _id: String(orderId), productId: productReference(source, sourceId), productTitle: product.title, brand: 'Marketplace', quantity: product.quantity, unitPriceKobo: product.unitPriceKobo, priceKobo: product.priceKobo, createdAt: now, status, code: delivery.credentials || null },
+    order: { _id: String(orderId), productId: productReference(source, sourceId), productTitle: product.title, brand: product.category || 'Marketplace', quantity: product.quantity, unitPriceKobo: product.unitPriceKobo, priceKobo: product.priceKobo, createdAt: now, status, code: delivery.credentials || null },
     balance: balanceAfterKobo / 100,
   }, { status: 201 })
 }

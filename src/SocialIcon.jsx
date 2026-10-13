@@ -7,6 +7,7 @@ const brandLogos = {
   Pinterest: ['pinterest', 'BD081C'], Telegram: ['telegram', '26A5E4'], WhatsApp: ['whatsapp', '25D366'],
   Spotify: ['spotify', '1ED760'],
   VPN: ['openvpn', 'EA7E20'],
+  'Apple ID': ['apple', '000000'],
 }
 
 const textPlusLogo = 'https://play-lh.googleusercontent.com/a9kW-OSwOC0_au9tEr6GyVHM5WwugvvR-Yp9ftt9jxrnKr3JCWe9PHgpnzQ5_3RW1lVNhoVh2A8s7qxk7ax-9A=s0-br30'
@@ -28,6 +29,7 @@ function vpnProviderLogo(title) {
 
 export default function SocialIcon({ category, title }) {
   if (category === 'TextPlus') return <img className='social-logo' src={textPlusLogo} alt='' aria-hidden='true' loading='lazy' />
+  if (category === 'Grok AI') return <img className='social-logo' src='/assets/grok-logomark.svg' alt='' aria-hidden='true' />
   const providerLogo = category === 'VPN' ? vpnProviderLogo(title) : null
   if (providerLogo) return <img className='social-logo' src={providerLogo} alt='' aria-hidden='true' loading='lazy' />
   if (category === 'Proxy') return <img className='social-logo proxy-logo' src='/assets/proxy-logo.jpg' alt='' aria-hidden='true' loading='lazy' />

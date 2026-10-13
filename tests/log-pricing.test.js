@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, isHiddenLogProduct, logCategory } from '../lib/log-providers.js'
+import { applyLogPriceRules, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, logCategory } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
@@ -41,6 +41,20 @@ test('Log products are grouped under their actual platforms', () => {
   assert.equal(logCategory('Other', 'MICROSOFT TEXTPLUS (Read Rules)'), 'TextPlus')
   assert.equal(logCategory('Other', 'EXPRESS FOR PHONE'), 'VPN')
   assert.equal(logCategory('Other', 'CLONE TIKTIOK US | Full 2FA'), 'TikTok')
+  assert.equal(logCategory('Other', 'USA Apple ID with email access'), 'Apple ID')
+  assert.equal(logCategory('Other', 'Grok AI account with 2FA'), 'Grok AI')
+})
+
+test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {
+  assert.deepEqual(Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.title, item.priceKobo])), {
+    'Snapchat with Email Access': 600000,
+    'USA Apple ID with Email Access': 800000,
+    'Canada Apple ID with Email Access': 750000,
+    'UK Apple ID with Email Access': 500000,
+    'Germany Apple ID with Email Access': 800000,
+    'Australia Apple ID with Email Access': 700000,
+    'Grok AI with Email Access and 2FA': 1100000,
+  })
 })
 
 test('Other clone-labelled products cost twice their calculated price', () => {
