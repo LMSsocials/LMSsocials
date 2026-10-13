@@ -43,10 +43,15 @@ test('Log products are grouped under their actual platforms', () => {
   assert.equal(logCategory('Other', 'CLONE TIKTIOK US | Full 2FA'), 'TikTok')
   assert.equal(logCategory('Other', 'USA Apple ID with email access'), 'Apple ID')
   assert.equal(logCategory('Other', 'Grok AI account with 2FA'), 'Grok AI')
+  assert.equal(logCategory('Other', 'ChatGPT account with email access'), 'ChatGPT')
+  assert.equal(logCategory('Other', 'USA SoundCloud account'), 'SoundCloud')
+  assert.equal(logCategory('Other', 'USA Roblox account'), 'Roblox')
+  assert.equal(logCategory('Other', 'Aged USA Twitch account'), 'Twitch')
 })
 
 test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {
-  assert.deepEqual(Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.title, item.priceKobo])), {
+  const prices = Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.title, item.priceKobo]))
+  assert.deepEqual(Object.fromEntries(Object.entries(prices).slice(0, 7)), {
     'Snapchat with Email Access': 600000,
     'USA Apple ID with Email Access': 800000,
     'Canada Apple ID with Email Access': 750000,
@@ -55,6 +60,14 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
     'Australia Apple ID with Email Access': 700000,
     'Grok AI with Email Access and 2FA': 1100000,
   })
+  assert.equal(prices['USA SoundCloud with Email and 2FA'], 3000000)
+  assert.equal(prices['USA Twitch with Email Access'], 1700000)
+  const chatGptProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'ChatGPT')
+  const robloxProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'Roblox')
+  assert.equal(chatGptProducts.length, 8)
+  assert.equal(robloxProducts.length, 8)
+  assert.ok(chatGptProducts.every((item) => item.priceKobo === 1000000))
+  assert.ok(robloxProducts.every((item) => item.priceKobo === 400000))
 })
 
 test('Other clone-labelled products cost twice their calculated price', () => {
