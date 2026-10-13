@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, logCategory } from '../lib/log-providers.js'
+import { applyLogPriceRules, bulkMarkedUpPriceKobo, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, logCategory } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
@@ -47,6 +47,8 @@ test('Log products are grouped under their actual platforms', () => {
   assert.equal(logCategory('Other', 'USA SoundCloud account'), 'SoundCloud')
   assert.equal(logCategory('Other', 'USA Roblox account'), 'Roblox')
   assert.equal(logCategory('Other', 'Aged USA Twitch account'), 'Twitch')
+  assert.equal(logCategory('Other', 'USA Yelp account with email access'), 'Yelp')
+  assert.equal(logCategory('Other', 'USA LinkedIn with Gmail access'), 'LinkedIn')
 })
 
 test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {
@@ -68,6 +70,15 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   assert.equal(robloxProducts.length, 8)
   assert.ok(chatGptProducts.every((item) => item.priceKobo === 1000000))
   assert.ok(robloxProducts.every((item) => item.priceKobo === 400000))
+  assert.equal(prices['Italy Snapchat with Gmail Access'], 9000000)
+  assert.equal(prices['USA LinkedIn with Gmail Access and 2FA'], 10593440)
+  assert.equal(prices['USA Spotify with Email Access'], 773760)
+  assert.equal(prices['USA Yelp with Email Access'], 1000000)
+})
+
+test('BulkAcc cost-based prices apply a 30 percent uplift after USD conversion', () => {
+  assert.equal(bulkMarkedUpPriceKobo(50.93, 30, 1600), 10593440)
+  assert.equal(bulkMarkedUpPriceKobo(3.72, 30, 1600), 773760)
 })
 
 test('Other clone-labelled products cost twice their calculated price', () => {

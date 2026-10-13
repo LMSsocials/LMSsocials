@@ -9,6 +9,7 @@ const brandLogos = {
   VPN: ['openvpn', 'EA7E20'],
   'Apple ID': ['apple', '000000'],
   SoundCloud: ['soundcloud', 'FF5500'], Roblox: ['roblox', '000000'], Twitch: ['twitch', '9146FF'],
+  Yelp: ['yelp', 'D32323'],
 }
 
 const textPlusLogo = 'https://play-lh.googleusercontent.com/a9kW-OSwOC0_au9tEr6GyVHM5WwugvvR-Yp9ftt9jxrnKr3JCWe9PHgpnzQ5_3RW1lVNhoVh2A8s7qxk7ax-9A=s0-br30'
