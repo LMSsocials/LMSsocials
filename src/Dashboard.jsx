@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
   ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2, ImageIcon,
-  Headphones, LoaderCircle, LogOut, Menu, PackageCheck, ReceiptText, ShieldCheck, TrendingUp, WalletCards, Wifi, Wrench, X,
+  Gem, Headphones, History, LoaderCircle, LogOut, Menu, PackageCheck, Plus, ReceiptText, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wifi, Wrench, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
 
@@ -56,6 +56,17 @@ const serviceMeta = {
 const serviceOrder = ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools', 'pictures']
 const deliveredStatuses = new Set(['delivered', 'completed'])
 const notificationKey = (order) => order ? `${order.type}:${order.id}:${order.status}` : ''
+const noop = () => {}
+
+const orderSources = [
+  ['/api/voucher-orders', (payload) => payload.orders || []],
+  ['/api/format-orders', (payload) => payload.orders || []],
+  ['/api/number-orders', (payload) => payload.orders || []],
+  ['/api/boosting-orders', (payload) => payload.orders || []],
+  ['/api/esim-orders', (payload) => payload.orders || []],
+  ['/api/tools', (payload) => payload.tools || []],
+  ['/api/pictures', (payload) => payload.pictures || []],
+]
 
 function orderDate(value) {
   if (!value) return 'Recently'
@@ -63,9 +74,11 @@ function orderDate(value) {
   return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })
 }
 
+const orderStatus = (value) => String(value || 'processing').replaceAll('_', ' ')
+
 const fullNaira = (value) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(value || 0))
 
-export default function Dashboard({ route, session, onSignOut }) {
+export default function Dashboard({ route, session, onSignOut, showWelcomeOffer = false, onCloseWelcomeOffer = noop }) {
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -80,13 +93,65 @@ export default function Dashboard({ route, session, onSignOut }) {
   const [orders, setOrders] = useState([])
   const [ordersState, setOrdersState] = useState('loading')
   const [notificationOpen, setNotificationOpen] = useState(false)
-  const [lastSeenNotification, setLastSeenNotification] = useState(() => {
-    try { return localStorage.getItem(`lms-notifications-seen:${user.id}`) || '' } catch { return '' }
+  const [showAllOrders, setShowAllOrders] = useState(false)
+  const [offerSeconds, setOfferSeconds] = useState(5 * 60)
+  const [seenNotificationKeys, setSeenNotificationKeys] = useState(() => {
+    const storageKey = `lms-notifications-seen:${user.id}`
+    try {
+      const stored = localStorage.getItem(storageKey)
+      if (!stored) return []
+      const parsed = JSON.parse(stored)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      try {
+        const legacyKey = localStorage.getItem(storageKey)
+        return legacyKey ? [legacyKey] : []
+      } catch { return [] }
+    }
   })
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  const loadOrders = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setOrdersState('loading')
+    try {
+      const [logs, files, numbers, boosts, esims, tools, pictures] = await Promise.all(orderSources.map(async ([url, selectItems]) => {
+        const response = await fetch(url, { cache: 'no-store' })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
+        return selectItems(payload)
+      }))
+      const combined = [
+        ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
+        ...files.map((order) => ({ id: order._id, type: 'File', item: order.title || order.fileName || 'Download', status: order.status || 'delivered', createdAt: order.createdAt })),
+        ...numbers.map((order) => ({ id: order._id, type: 'Number', item: order.phoneNumber || [order.countryCode || order.countryId, order.serviceCode].filter(Boolean).join(' · ') || 'Virtual number', status: order.status || 'processing', createdAt: order.createdAt })),
+        ...boosts.map((order) => ({ id: order._id, type: 'Boosting', item: order.serviceName || 'Social media boost', status: order.status || 'pending', createdAt: order.createdAt })),
+        ...esims.map((order) => ({ id: order._id, type: 'eSIM', item: `${order.planName || 'Plan'} eSIM`, status: order.status || 'awaiting_code', createdAt: order.createdAt })),
+        ...tools.filter((tool) => tool.purchased).map((tool) => ({ id: tool._id, type: 'Tool', item: tool.name, status: 'delivered', createdAt: tool.purchasedAt })),
+        ...pictures.filter((picture) => picture.purchased).map((picture) => ({ id: picture._id, type: 'Picture', item: picture.title, status: 'delivered', createdAt: picture.purchasedAt })),
+      ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      setOrders(combined)
+      setOrdersState('success')
+    } catch {
+      setOrdersState('error')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!showWelcomeOffer) return undefined
+    setOfferSeconds(5 * 60)
+    const timer = window.setInterval(() => setOfferSeconds((current) => {
+      if (current <= 1) {
+        window.clearInterval(timer)
+        onCloseWelcomeOffer()
+        return 0
+      }
+      return current - 1
+    }), 1000)
+    return () => window.clearInterval(timer)
+  }, [showWelcomeOffer, onCloseWelcomeOffer])
 
   function openDashboardSection(id) {
     setMobileMenuOpen(false)
@@ -109,54 +174,52 @@ export default function Dashboard({ route, session, onSignOut }) {
       if (event.key !== 'Escape') return
       setMobileMenuOpen(false)
       setNotificationOpen(false)
+      if (showWelcomeOffer) onCloseWelcomeOffer()
     }
     window.addEventListener('keydown', closeMenu)
     return () => window.removeEventListener('keydown', closeMenu)
-  }, [])
+  }, [showWelcomeOffer, onCloseWelcomeOffer])
 
   useEffect(() => {
     const updateBalance = (event) => setBalance(Number(event.detail || 0))
+    const updateActivity = () => loadOrders({ quiet: true })
     window.addEventListener('wallet-balance', updateBalance)
-    return () => window.removeEventListener('wallet-balance', updateBalance)
-  }, [])
+    window.addEventListener('wallet-balance', updateActivity)
+    return () => {
+      window.removeEventListener('wallet-balance', updateBalance)
+      window.removeEventListener('wallet-balance', updateActivity)
+    }
+  }, [loadOrders])
 
   useEffect(() => {
-    let cancelled = false
-    setOrdersState('loading')
-    Promise.all(['/api/voucher-orders', '/api/format-orders', '/api/number-orders', '/api/boosting-orders', '/api/esim-orders', '/api/tools', '/api/pictures'].map(async (url) => {
-      const response = await fetch(url, { cache: 'no-store' })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
-      return payload.orders || payload.tools || []
-    })).then(([logs, files, numbers, boosts, esims, tools, pictures]) => {
-      if (cancelled) return
-      const combined = [
-        ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
-        ...files.map((order) => ({ id: order._id, type: 'File', item: order.title || order.fileName || 'Download', status: order.status || 'delivered', createdAt: order.createdAt })),
-        ...numbers.map((order) => ({ id: order._id, type: 'Number', item: order.phoneNumber || [order.countryCode || order.countryId, order.serviceCode].filter(Boolean).join(' · ') || 'Virtual number', status: order.status || 'processing', createdAt: order.createdAt })),
-        ...boosts.map((order) => ({ id: order._id, type: 'Boosting', item: order.serviceName || 'Social media boost', status: order.status || 'pending', createdAt: order.createdAt })),
-        ...esims.map((order) => ({ id: order._id, type: 'eSIM', item: `${order.planName} eSIM`, status: order.status || 'awaiting_code', createdAt: order.createdAt })),
-        ...tools.filter((tool) => tool.purchased).map((tool) => ({ id: tool._id, type: 'Tool', item: tool.name, status: 'delivered', createdAt: tool.purchasedAt })),
-        ...pictures.filter((picture) => picture.purchased).map((picture) => ({ id: picture._id, type: 'Picture', item: picture.title, status: 'delivered', createdAt: picture.purchasedAt })),
-      ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-      setOrders(combined); setOrdersState('success')
-    }).catch(() => { if (!cancelled) setOrdersState('error') })
-    return () => { cancelled = true }
-  }, [])
+    loadOrders()
+    const refresh = () => { if (!document.hidden) loadOrders({ quiet: true }) }
+    const timer = window.setInterval(refresh, 30_000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [loadOrders])
 
   const recentOrders = orders.slice(0, 3)
+  const visibleDashboardOrders = showAllOrders ? orders : recentOrders
   const notificationOrders = orders.slice(0, 5)
-  const latestNotification = notificationKey(notificationOrders[0])
-  const hasUnreadNotifications = Boolean(latestNotification && latestNotification !== lastSeenNotification)
+  const unreadNotificationCount = orders.filter((order) => !seenNotificationKeys.includes(notificationKey(order))).length
+  const hasUnreadNotifications = unreadNotificationCount > 0
   const deliveredOrders = orders.filter((order) => deliveredStatuses.has(String(order.status).toLowerCase())).length
 
   function toggleNotifications() {
     const nextOpen = !notificationOpen
     setNotificationOpen(nextOpen)
     setMobileMenuOpen(false)
-    if (!nextOpen || !latestNotification) return
-    setLastSeenNotification(latestNotification)
-    try { localStorage.setItem(`lms-notifications-seen:${user.id}`, latestNotification) } catch { return }
+    if (!nextOpen || !orders.length) return
+    const currentKeys = orders.map(notificationKey).filter(Boolean)
+    const nextSeenKeys = [...new Set([...seenNotificationKeys, ...currentKeys])].slice(-250)
+    setSeenNotificationKeys(nextSeenKeys)
+    try { localStorage.setItem(`lms-notifications-seen:${user.id}`, JSON.stringify(nextSeenKeys)) } catch { return }
   }
 
   async function openFunding() {
@@ -173,6 +236,11 @@ export default function Dashboard({ route, session, onSignOut }) {
       if (!createResponse.ok) throw new Error(created.message || 'Unable to generate account')
       setFundAccount(created.account); setFundState('success')
     } catch (error) { setFundState('error'); setFundMessage(error.message) }
+  }
+
+  function fundFromWelcome() {
+    onCloseWelcomeOffer()
+    openFunding()
   }
 
   async function copyAccountNumber() {
@@ -210,7 +278,7 @@ export default function Dashboard({ route, session, onSignOut }) {
             </div>
           </div>
           <div className='dash-actions'>
-            <button className='notification-trigger' aria-label={hasUnreadNotifications ? 'Notifications, new activity' : 'Notifications'} aria-controls='dashboard-notifications' aria-expanded={notificationOpen} onClick={toggleNotifications}><Bell />{hasUnreadNotifications && <i />}</button>
+            <button className='notification-trigger' aria-label={hasUnreadNotifications ? `${unreadNotificationCount} unread notifications` : 'Notifications'} aria-controls='dashboard-notifications' aria-expanded={notificationOpen} onClick={toggleNotifications}><Bell />{hasUnreadNotifications && <span className='notification-count'>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}</button>
             <button className='dash-avatar' title={user.email}>{name.charAt(0).toUpperCase()}</button>
             <button aria-label='Sign out' onClick={onSignOut}><LogOut /></button>
             <button className='dash-menu-toggle' aria-label='Open menu' aria-controls='mobile-dashboard-menu' aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu /></button>
@@ -222,11 +290,22 @@ export default function Dashboard({ route, session, onSignOut }) {
             {ordersState === 'loading' && <p><LoaderCircle className='spin' /> Loading notifications...</p>}
             {ordersState === 'error' && <p>Notifications could not be loaded. Refresh to try again.</p>}
             {ordersState === 'success' && !notificationOrders.length && <p><Bell /> You have no notifications yet.</p>}
-            {ordersState === 'success' && notificationOrders.map((order) => <article key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><strong>{order.type}: {order.item}</strong><small>{order.status} · {orderDate(order.createdAt)}</small></span></article>)}
+            {ordersState === 'success' && notificationOrders.map((order) => <article key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><strong>{order.type}: {order.item}</strong><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}</small></span></article>)}
           </div>
           {notificationOrders.length > 0 && <button className='notification-history' type='button' onClick={() => openDashboardSection('orders')}>View recent orders <ArrowRight /></button>}
         </section></>}
         {mobileMenuOpen && <button className='dash-menu-backdrop' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)} />}
+        {showWelcomeOffer && <div className='welcome-offer-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseWelcomeOffer() }}><section className='welcome-offer' role='dialog' aria-modal='true' aria-labelledby='welcome-offer-title'>
+          <button className='welcome-offer-close' type='button' aria-label='Close welcome message' onClick={onCloseWelcomeOffer}><X /></button>
+          <span className='welcome-offer-icon'><Gem /></span>
+          <small>WELCOME TO LMS SOCIALS</small>
+          <h2 id='welcome-offer-title'>Welcome back, {firstName}!</h2>
+          <p>Your account is ready. Add money to your wallet and start ordering any service in just a few taps.</p>
+          <div className='welcome-offer-balance'><span><Sparkles /> AVAILABLE BALANCE</span><strong>{fullNaira(balance)}</strong><small>Secure funding through your dedicated bank account</small></div>
+          <button className='welcome-offer-cta' type='button' onClick={fundFromWelcome}><Plus /> Add Money</button>
+          <button className='welcome-offer-later' type='button' onClick={onCloseWelcomeOffer}>Maybe later</button>
+          <div className='welcome-offer-timer'>AUTO CLOSES IN <b>{String(Math.floor(offerSeconds / 60)).padStart(2, '0')}:{String(offerSeconds % 60).padStart(2, '0')}</b></div>
+        </section></div>}
         {fundOpen && <div className='fund-modal-backdrop' role='presentation' onMouseDown={() => fundState !== 'loading' && setFundOpen(false)}><section className='fund-modal' role='dialog' aria-modal='true' aria-labelledby='fund-wallet-title' onMouseDown={(event) => event.stopPropagation()}>
           <header><span><WalletCards /></span><div><small>BANK TRANSFER</small><h2 id='fund-wallet-title'>Fund your wallet</h2><p>Transfer to your dedicated account from any Nigerian bank.</p></div><button type='button' aria-label='Close funding dialog' onClick={() => setFundOpen(false)}><X /></button></header>
           {fundState === 'loading' && !fundAccount ? <div className='fund-loading'><LoaderCircle className='spin' /><span>Getting your account details...</span></div> : fundAccount ? <div className='fund-account'>
@@ -243,16 +322,11 @@ export default function Dashboard({ route, session, onSignOut }) {
         {!activeService ? <><header className='dash-head'>
           <div><h1>Welcome back, {firstName}.</h1><p>Choose a service or review your recent orders.</p></div>
           <div className={'dash-head-stats ' + (balance >= 1000000 ? 'balance-expanded' : '')}>
-            <div className='balance-stat'><small>Balance</small><strong>{fullNaira(balance)}</strong></div>
-            <div><small>Orders</small><strong>{ordersState === 'loading' ? '—' : orders.length}</strong></div>
-            <div><small>Delivered</small><strong>{ordersState === 'loading' ? '—' : deliveredOrders}</strong></div>
+            <div className='balance-stat'><div className='stat-label'><i><WalletCards /></i><small>Available balance</small></div><strong>{fullNaira(balance)}</strong><span>Ready to spend across every service</span><div className='wallet-actions'><button type='button' onClick={openFunding}><Plus /> Add Money</button><button type='button' onClick={() => goTo('orders')}><History /> History</button></div></div>
+            <div className='order-stat'><div className='stat-label'><i><ReceiptText /></i><small>Orders</small></div><strong>{ordersState === 'loading' ? '—' : orders.length}</strong><span>All purchases</span></div>
+            <div className='delivered-stat'><div className='stat-label'><i><PackageCheck /></i><small>Delivered</small></div><strong>{ordersState === 'loading' ? '—' : deliveredOrders}</strong><span>Completed</span></div>
           </div>
-        </header>
-
-        <div className='dash-progress'>
-          <span>Account ready</span><i /><i /><i className='muted' />
-          <small>{orders.length ? `${deliveredOrders} of ${orders.length} orders completed` : 'Complete your first order to unlock activity insights'}</small>
-        </div></> : <header className='dash-service-hero'>
+        </header></> : <header className='dash-service-hero'>
           <button onClick={() => { window.location.hash = '#account' }}><ArrowRight /> Back to dashboard</button>
           <span>SERVICE MARKETPLACE</span>
           <h1>{serviceMeta[activeService].label}</h1>
@@ -261,7 +335,7 @@ export default function Dashboard({ route, session, onSignOut }) {
 
         <section className={'dash-layout ' + (!activeService ? 'overview' : 'service-page')}>
           {!activeService && <aside className='dash-services' id='services'>
-            <div className='dash-section-title'><div><span>QUICK ACTIONS</span><h2>Choose a lane</h2></div><small>{String(serviceOrder.length).padStart(2, '0')}</small></div>
+            <div className='dash-section-title'><div><span>SERVICES</span><h2>Quick actions</h2></div><small>{String(serviceOrder.length).padStart(2, '0')}</small></div>
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
               const Icon = item.icon
@@ -284,17 +358,11 @@ export default function Dashboard({ route, session, onSignOut }) {
           </section> : null}
 
           {!activeService && <aside className='dash-activity' id='orders'>
-            <div className='activity-head'><span>RECENT ORDERS</span><strong>{Math.min(recentOrders.length, 3)}/3</strong></div>
-            <div className='activity-ring'><PackageCheck /><span>{ordersState === 'loading' ? 'Loading' : orders.length ? `${orders.length} order${orders.length === 1 ? '' : 's'}` : 'No orders'}</span></div>
-            <h2>{orders.length ? <>Your latest<br />activity.</> : <>Your activity<br />starts here.</>}</h2>
-            <p>{ordersState === 'error' ? 'We could not load your orders. Refresh to try again.' : orders.length ? 'Your latest completed and active purchases.' : 'Completed and active orders will appear in this space.'}</p>
+            <div className='activity-head'><div><span>RECENT ORDERS</span><h2>{orders.length ? 'Latest activity' : 'Activity starts here'}</h2></div>{orders.length > 3 && <button type='button' onClick={() => setShowAllOrders((current) => !current)}>{showAllOrders ? 'Show less' : 'View all'} <ArrowRight /></button>}</div>
+            <p>{ordersState === 'error' ? 'We could not load your orders. Refresh to try again.' : orders.length ? 'Track active and completed purchases.' : 'Completed and active orders will appear here.'}</p>
             <div className='activity-list'>
-              {recentOrders.map((order) => <span key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><b>{order.type}: {order.item}</b><small>{order.status} · {orderDate(order.createdAt)}</small></span>)}
-              {!recentOrders.length && <>
-                <span><i><Clock3 /></i><b>Order placed</b><small>Waiting</small></span>
-                <span><i><TrendingUp /></i><b>In progress</b><small>Waiting</small></span>
-                <span><i><PackageCheck /></i><b>Delivered</b><small>Waiting</small></span>
-              </>}
+              {visibleDashboardOrders.map((order) => <article key={`${order.type}-${order.id}`}><i className={deliveredStatuses.has(String(order.status).toLowerCase()) ? 'delivered' : 'pending'}>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><b>{order.type}: {order.item}</b><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}</small></span></article>)}
+              {!recentOrders.length && <div className='activity-empty'><Clock3 /><strong>No orders yet</strong><span>Your purchases will appear here.</span></div>}
             </div>
           </aside>}
         </section>

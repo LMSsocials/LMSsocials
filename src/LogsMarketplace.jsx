@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, BadgeCheck, Copy, CircleUserRound, LoaderCircle, Minus, PackageOpen, Plus, Search, ShoppingBag, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BadgeCheck, Copy, CircleUserRound, LayoutGrid, LoaderCircle, Minus, PackageOpen, Plus, Search, ShoppingBag, X } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -18,6 +18,14 @@ function subsectionFor(product) {
   return 'Standard'
 }
 
+function categoryLabel(item) {
+  if (item === 'All') return 'All available logs'
+  if (item === 'Proxy') return 'Mobile Proxies'
+  if (item === 'Google Voice') return 'Google Voice Accounts'
+  if (/accounts?|proxies/i.test(item)) return item
+  return `${item} Accounts`
+}
+
 export default function LogsMarketplace() {
   const [products, setProducts] = useState([])
   const [orders, setOrders] = useState([])
@@ -31,6 +39,7 @@ export default function LogsMarketplace() {
   const [checkoutError, setCheckoutError] = useState('')
   const [completedOrder, setCompletedOrder] = useState(null)
   const [deliveryCopied, setDeliveryCopied] = useState(false)
+  const [directoryOpen, setDirectoryOpen] = useState(true)
 
   const load = async () => {
     setState('loading')
@@ -70,6 +79,7 @@ export default function LogsMarketplace() {
     })
     return Array.from(grouped, ([label, sectionProducts]) => ({ label, products: sectionProducts })).sort((a, b) => a.label.localeCompare(b.label))
   }, [category, visibleProducts])
+  const browsingProducts = !directoryOpen || Boolean(query.trim())
 
   const pendingOrderId = completedOrder?.status === 'processing' && !completedOrder.code ? completedOrder._id : ''
   useEffect(() => {
@@ -137,18 +147,27 @@ export default function LogsMarketplace() {
 
   return (
     <section className='logs-market voucher-market'>
-      <header className='logs-head'>
-        <div><span>DIGITAL LOGS</span><h2>Premium logs, ready instantly.</h2><p>Choose a listing, pay securely from your wallet, and receive one unused delivery code in your order history.</p></div>
+      <header className='logs-head logs-directory-head'>
+        <div><span>BUY LOGS</span><h2>{browsingProducts ? categoryLabel(category) : 'Choose a service'}</h2><p>{browsingProducts ? 'Choose a listing and receive your details securely after purchase.' : 'Select a category to view its available products.'}</p></div>
         <div className='voucher-trust'><BadgeCheck /><span><strong>Secure delivery</strong><small>Codes stay private until purchase</small></span></div>
       </header>
 
       <div className='voucher-tools'>
-        <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder='Search available logs...' /></label>
-        <div className='logs-platforms' role='group' aria-label='Browse log categories'>{categories.map((item) => <button key={item} className={category === item ? 'active' : ''} aria-pressed={category === item} onClick={() => setCategory(item)}><SocialIcon category={item} /><span>{item}</span></button>)}</div>
+        <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder='Search services or products...' /></label>
+        {browsingProducts && <div className='logs-browser-bar'><button type='button' onClick={() => { setCategory('All'); setQuery(''); setDirectoryOpen(true) }}><ArrowLeft /> All services</button><span>{visibleProducts.length} product{visibleProducts.length === 1 ? '' : 's'} found</span></div>}
       </div>
 
       {message && <div className='voucher-message'>{message}</div>}
-      {state === 'loading' ? <div className='logs-empty'><LoaderCircle className='spin' /><strong>Loading logs</strong></div> : <div className='logs-product-sections'>
+      {state === 'loading' ? <div className='logs-empty'><LoaderCircle className='spin' /><strong>Loading logs</strong></div> : !browsingProducts ? <div className='log-category-grid'>
+        {categories.map((item) => {
+          const count = item === 'All' ? products.length : products.filter((product) => product.category === item).length
+          return <button key={item} type='button' onClick={() => { setCategory(item); setDirectoryOpen(false) }}>
+            <i className={`log-category-icon log-category-${item.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{item === 'All' ? <LayoutGrid /> : <SocialIcon category={item} />}</i>
+            <span><strong>{categoryLabel(item)}</strong><small>{count} available product{count === 1 ? '' : 's'}</small></span>
+            <b><ArrowRight /></b>
+          </button>
+        })}
+      </div> : <div className='logs-product-sections'>
         {productSections.map((section) => <section key={section.label || 'all'} className='logs-product-section'>
           {section.label && <header><span>{category}</span><h3>{section.label} <small>{section.products.length}</small></h3></header>}
           <div className='voucher-products'>{section.products.map((product) => (

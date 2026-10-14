@@ -269,6 +269,7 @@ function App() {
   const [route, setRoute] = useState('')
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
+  const [showWelcomeOffer, setShowWelcomeOffer] = useState(false)
 
   useEffect(() => {
     setRoute(window.location.hash)
@@ -282,9 +283,10 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession)
       setAuthReady(true)
+      setShowWelcomeOffer(event === 'SIGNED_IN' && !nextSession?.user?.isAdmin)
     })
 
     return () => subscription.unsubscribe()
@@ -342,22 +344,22 @@ function App() {
   if (route === '#account/admin') {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading administrator access...</span></main>
     if (!session?.user?.isAdmin) return <AuthPage route="#account/admin" />
-    return <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
+    return <Dashboard route={route} session={session} showWelcomeOffer={false} onCloseWelcomeOffer={() => {}} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
   }
 
   if (route === '#account' || ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools', 'pictures'].includes(accountPage)) {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading your account…</span></main>
-    return session ? <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
+    return session ? <Dashboard route={route} session={session} showWelcomeOffer={showWelcomeOffer} onCloseWelcomeOffer={() => setShowWelcomeOffer(false)} onSignOut={async () => { setShowWelcomeOffer(false); await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
   }
 
   if (route === '#admin/login') {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading administrator access...</span></main>
-    if (session?.user?.isAdmin) return <Dashboard route="#account/admin" session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
+    if (session?.user?.isAdmin) return <Dashboard route="#account/admin" session={session} showWelcomeOffer={false} onCloseWelcomeOffer={() => {}} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
     return <AuthPage route={route} />
   }
 
   if (route === '#login' || route === '#signup') {
-    if (session) return <Dashboard route={route} session={session} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#login' }} />
+    if (session) return <Dashboard route={route} session={session} showWelcomeOffer={showWelcomeOffer} onCloseWelcomeOffer={() => setShowWelcomeOffer(false)} onSignOut={async () => { setShowWelcomeOffer(false); await supabase.auth.signOut(); window.location.hash = '#login' }} />
     return <AuthPage route={route} />
   }
 
