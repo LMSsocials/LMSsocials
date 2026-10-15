@@ -33,7 +33,7 @@ async function getSupplierServices(database, pricing) {
       priceKobo: supplierProductPriceKobo(pricing, item._id, item.priceKobo),
     }))
   }
-  return [...bulkItems, ...sujanItems.map(serviceSummary)]
+  return [...bulkItems, ...sujanItems].map(serviceSummary)
     .sort((left, right) => left.category.localeCompare(right.category) || left.title.localeCompare(right.title))
 }
 
