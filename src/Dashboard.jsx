@@ -91,7 +91,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const [fundAccount, setFundAccount] = useState(null)
   const [accountCopied, setAccountCopied] = useState(false)
   const [orders, setOrders] = useState([])
-  const [ordersState, setOrdersState] = useState('loading')
+  const [ordersState, setOrdersState] = useState('idle')
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [offerSeconds, setOfferSeconds] = useState(5 * 60)
   const [seenNotificationKeys, setSeenNotificationKeys] = useState(() => {
@@ -181,9 +181,10 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   }, [loadOrders])
 
   useEffect(() => {
+    if (activeService && !isOrdersPage) return undefined
     loadOrders()
     const refresh = () => { if (!document.hidden) loadOrders({ quiet: true }) }
-    const timer = window.setInterval(refresh, 30_000)
+    const timer = window.setInterval(refresh, 120_000)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
     return () => {
@@ -191,7 +192,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [loadOrders])
+  }, [activeService, isOrdersPage, loadOrders])
 
   const notificationOrders = orders.slice(0, 5)
   const unreadNotificationCount = orders.filter((order) => !seenNotificationKeys.includes(notificationKey(order))).length
@@ -202,6 +203,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     const nextOpen = !notificationOpen
     setNotificationOpen(nextOpen)
     setMobileMenuOpen(false)
+    if (nextOpen && ordersState === 'idle') loadOrders()
     if (!nextOpen || !orders.length) return
     const currentKeys = orders.map(notificationKey).filter(Boolean)
     const nextSeenKeys = [...new Set([...seenNotificationKeys, ...currentKeys])].slice(-250)

@@ -17,8 +17,9 @@ export default function AdminPanel() {
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
   const [pricingServices, setPricingServices] = useState([])
-  const [servicePrices, setServicePrices] = useState({})
   const [pricingSearch, setPricingSearch] = useState('')
+  const [editingPricingId, setEditingPricingId] = useState('')
+  const [editingPricingPrice, setEditingPricingPrice] = useState('')
   const [esimPlans, setEsimPlans] = useState([])
   const [esimPrices, setEsimPrices] = useState({})
   const [tools, setTools] = useState([])
@@ -35,31 +36,29 @@ export default function AdminPanel() {
   const [editingProductId, setEditingProductId] = useState('')
   const [productPrice, setProductPrice] = useState('')
 
-  const loadData = useCallback(async () => {
-    const [assetsResponse, vouchersResponse, usersResponse, pricingResponse, esimResponse, toolsResponse, picturesResponse] = await Promise.all([fetch('/api/admin/assets'), fetch('/api/admin/vouchers'), fetch('/api/admin/users'), fetch('/api/admin/pricing'), fetch('/api/admin/esim'), fetch('/api/admin/tools'), fetch('/api/admin/pictures')])
-    const assetsPayload = await assetsResponse.json().catch(() => ({}))
-    const vouchersPayload = await vouchersResponse.json().catch(() => ({}))
-    const usersPayload = await usersResponse.json().catch(() => ({}))
-    const pricingPayload = await pricingResponse.json().catch(() => ({}))
-    const esimPayload = await esimResponse.json().catch(() => ({}))
-    const toolsPayload = await toolsResponse.json().catch(() => ({}))
-    const picturesPayload = await picturesResponse.json().catch(() => ({}))
-    if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
-    if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
-    if (usersResponse.ok) setUsers(usersPayload.users || [])
-    if (pricingResponse.ok) {
-      const services = pricingPayload.services || []
-      setPricingServices(services)
-      setServicePrices(Object.fromEntries(services.map((service) => [service.id, String(Number(service.priceKobo || 0) / 100)])))
+  const loadData = useCallback(async (selectedTab = tab) => {
+    const routes = {
+      vouchers: '/api/admin/vouchers', pricing: '/api/admin/pricing', esim: '/api/admin/esim',
+      tools: '/api/admin/tools', pictures: '/api/admin/pictures', files: '/api/admin/assets', users: '/api/admin/users',
     }
-    if (esimResponse.ok) {
-      const plans = esimPayload.plans || []
+    const response = await fetch(routes[selectedTab], { cache: 'no-store' })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(payload.message || 'Unable to load this admin section')
+    if (selectedTab === 'files') setAssets(payload.assets || [])
+    if (selectedTab === 'vouchers') setProducts(payload.products || [])
+    if (selectedTab === 'users') setUsers(payload.users || [])
+    if (selectedTab === 'pricing') {
+      const services = payload.services || []
+      setPricingServices(services)
+    }
+    if (selectedTab === 'esim') {
+      const plans = payload.plans || []
       setEsimPlans(plans)
       setEsimPrices(Object.fromEntries(plans.map((plan) => [plan.id, plan.priceKobo ? String(plan.priceKobo / 100) : ''])))
     }
-    if (toolsResponse.ok) setTools(toolsPayload.tools || [])
-    if (picturesResponse.ok) setPictures(picturesPayload.pictures || [])
-  }, [])
+    if (selectedTab === 'tools') setTools(payload.tools || [])
+    if (selectedTab === 'pictures') setPictures(payload.pictures || [])
+  }, [tab])
 
   useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [loadData])
 
@@ -219,19 +218,24 @@ export default function AdminPanel() {
     setState('success'); setMessage(`${user.email} has been ${action === 'ban' ? 'banned' : 'unbanned'}.`)
   }
 
-  const savePricing = async (event) => {
-    event.preventDefault()
+  const editServicePrice = (service) => {
+    setEditingPricingId(service.id)
+    setEditingPricingPrice(String(Number(service.priceKobo || 0) / 100))
+    setMessage('')
+  }
+
+  const saveServicePrice = async (serviceId) => {
     setState('loading'); setMessage('')
     const response = await fetch('/api/admin/pricing', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prices: servicePrices }),
+      body: JSON.stringify({ prices: { [serviceId]: editingPricingPrice }, mode: 'merge' }),
     })
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update pricing'); return }
     const services = payload.services || []
     setPricingServices(services)
-    setServicePrices(Object.fromEntries(services.map((service) => [service.id, String(Number(service.priceKobo || 0) / 100)])))
-    setState('success'); setMessage('Exact service prices saved. Catalog and checkout prices are now active.')
+    setEditingPricingId(''); setEditingPricingPrice('')
+    setState('success'); setMessage('Service price updated. The new catalog and checkout price is now active.')
   }
 
   const saveEsimPricing = async (event) => {
@@ -368,16 +372,17 @@ export default function AdminPanel() {
     </> : tab === 'pricing' ? <section className='admin-pricing admin-service-pricing'>
       <header><SlidersHorizontal /><div><small>EXACT SERVICE PRICING</small><h3>Edit each supplier service price</h3><p>Enter the exact amount customers should pay. Saved prices are used in both the catalog and checkout.</p></div></header>
       <label className='admin-pricing-search'><Search /><input value={pricingSearch} onChange={(event) => setPricingSearch(event.target.value)} placeholder='Search services, categories, or suppliers' /></label>
-      <form onSubmit={savePricing}>
+      <div className='admin-service-price-form'>
         <div className='admin-service-price-list'>
-          {filteredPricingServices.map((service) => <label key={service.id} className='admin-service-price-row'>
+          {filteredPricingServices.map((service) => <article key={service.id} className='admin-service-price-row'>
             <span><strong>{service.title}</strong><small>{service.category} · {service.source === 'bulkacc' ? 'BulkAcc' : 'Sujan Department'}</small></span>
-            <div><strong>₦</strong><input aria-label={`Price for ${service.title}`} type='number' min='100' max='10000000' step='50' value={servicePrices[service.id] ?? ''} onChange={(event) => setServicePrices((current) => ({ ...current, [service.id]: event.target.value }))} required /></div>
-          </label>)}
+            {editingPricingId === service.id
+              ? <div className='admin-service-price-editor'><strong>₦</strong><input autoFocus aria-label={`Price for ${service.title}`} type='number' min='100' max='10000000' step='50' value={editingPricingPrice} onChange={(event) => setEditingPricingPrice(event.target.value)} required /><button type='button' disabled={state === 'loading' || !editingPricingPrice} onClick={() => saveServicePrice(service.id)}>Save</button><button type='button' onClick={() => { setEditingPricingId(''); setEditingPricingPrice('') }}>Cancel</button></div>
+              : <div className='admin-service-price-display'><strong>{money(service.priceKobo)}</strong><button type='button' onClick={() => editServicePrice(service)}>Edit price</button></div>}
+          </article>)}
           {!filteredPricingServices.length && <p className='admin-service-price-empty'>{pricingServices.length ? 'No services match your search.' : 'Supplier services are temporarily unavailable.'}</p>}
         </div>
-        <button disabled={state === 'loading' || !pricingServices.length}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Save all service prices</button>
-      </form>
+      </div>
     </section> : tab === 'esim' ? <section className='admin-pricing esim-admin-pricing'>
       <header><Wifi /><div><small>eSIM PRICING</small><h3>Set plan prices</h3><p>Leave a price blank to keep that plan unavailable. Customers can only purchase plans with a saved price.</p></div></header>
       <form onSubmit={saveEsimPricing}>
