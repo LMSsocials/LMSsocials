@@ -347,7 +347,7 @@ function App() {
     return <Dashboard route={route} session={session} showWelcomeOffer={false} onCloseWelcomeOffer={() => {}} onSignOut={async () => { await supabase.auth.signOut(); window.location.hash = '#admin/login' }} />
   }
 
-  if (route === '#account' || ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools', 'pictures'].includes(accountPage)) {
+  if (route === '#account' || ['boosting', 'numbers', 'logs', 'format', 'esim', 'tools', 'pictures', 'orders'].includes(accountPage)) {
     if (!authReady) return <main className="auth-loading"><Logo /><span>Loading your account…</span></main>
     return session ? <Dashboard route={route} session={session} showWelcomeOffer={showWelcomeOffer} onCloseWelcomeOffer={() => setShowWelcomeOffer(false)} onSignOut={async () => { setShowWelcomeOffer(false); await supabase.auth.signOut(); window.location.hash = '#login' }} /> : <AuthPage route="#login" />
   }

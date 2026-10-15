@@ -81,8 +81,8 @@ const fullNaira = (value) => new Intl.NumberFormat('en-NG', { style: 'currency',
 export default function Dashboard({ route, session, onSignOut, showWelcomeOffer = false, onCloseWelcomeOffer = noop }) {
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
+  const isOrdersPage = page === 'orders'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [scrollTarget, setScrollTarget] = useState('')
   const user = session.user
   const [balance, setBalance] = useState(Number(user.balance || 0))
   const [fundOpen, setFundOpen] = useState(false)
@@ -93,7 +93,6 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const [orders, setOrders] = useState([])
   const [ordersState, setOrdersState] = useState('loading')
   const [notificationOpen, setNotificationOpen] = useState(false)
-  const [showAllOrders, setShowAllOrders] = useState(false)
   const [offerSeconds, setOfferSeconds] = useState(5 * 60)
   const [seenNotificationKeys, setSeenNotificationKeys] = useState(() => {
     const storageKey = `lms-notifications-seen:${user.id}`
@@ -153,21 +152,11 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     return () => window.clearInterval(timer)
   }, [showWelcomeOffer, onCloseWelcomeOffer])
 
-  function openDashboardSection(id) {
+  function openOrderHistory() {
     setMobileMenuOpen(false)
     setNotificationOpen(false)
-    setScrollTarget(id)
-    window.location.hash = '#account'
+    window.location.hash = '#account/orders'
   }
-
-  useEffect(() => {
-    if (!scrollTarget || route !== '#account') return undefined
-    const frame = window.requestAnimationFrame(() => {
-      goTo(scrollTarget)
-      setScrollTarget('')
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [route, scrollTarget])
 
   useEffect(() => {
     const closeMenu = (event) => {
@@ -204,8 +193,6 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     }
   }, [loadOrders])
 
-  const recentOrders = orders.slice(0, 3)
-  const visibleDashboardOrders = showAllOrders ? orders : recentOrders
   const notificationOrders = orders.slice(0, 5)
   const unreadNotificationCount = orders.filter((order) => !seenNotificationKeys.includes(notificationKey(order))).length
   const hasUnreadNotifications = unreadNotificationCount > 0
@@ -260,7 +247,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
             <div className='dash-mobile-menu-scroll'>
-              <button className={!activeService ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
+              <button className={!activeService && !isOrdersPage ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
               <button onClick={() => { openFunding(); setMobileMenuOpen(false) }}><WalletCards /> Fund wallet</button>
               <div className='dash-menu-group'>SERVICES</div>
               <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
@@ -271,7 +258,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
               <button className={activeService === 'tools' ? 'active' : ''} onClick={() => { window.location.hash = '#account/tools'; setMobileMenuOpen(false) }}><Wrench /> Working Tools</button>
               <button className={activeService === 'pictures' ? 'active' : ''} onClick={() => { window.location.hash = '#account/pictures'; setMobileMenuOpen(false) }}><ImageIcon /> Working Pictures</button>
               <div className='dash-menu-group'>ACCOUNT</div>
-              <button onClick={() => openDashboardSection('orders')}><ReceiptText /> Order history</button>
+              <button className={isOrdersPage ? 'active' : ''} onClick={openOrderHistory}><ReceiptText /> Order history</button>
               <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
               {user.isAdmin && <button className={activeService === 'admin' ? 'active' : ''} onClick={() => { window.location.hash = '#account/admin'; setMobileMenuOpen(false) }}><ShieldCheck /> Admin uploads</button>}
               <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
@@ -292,7 +279,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             {ordersState === 'success' && !notificationOrders.length && <p><Bell /> You have no notifications yet.</p>}
             {ordersState === 'success' && notificationOrders.map((order) => <article key={`${order.type}-${order.id}`}><i>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><strong>{order.type}: {order.item}</strong><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}</small></span></article>)}
           </div>
-          {notificationOrders.length > 0 && <button className='notification-history' type='button' onClick={() => openDashboardSection('orders')}>View recent orders <ArrowRight /></button>}
+          {notificationOrders.length > 0 && <button className='notification-history' type='button' onClick={openOrderHistory}>View order history <ArrowRight /></button>}
         </section></>}
         {mobileMenuOpen && <button className='dash-menu-backdrop' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)} />}
         {showWelcomeOffer && <div className='welcome-offer-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseWelcomeOffer() }}><section className='welcome-offer' role='dialog' aria-modal='true' aria-labelledby='welcome-offer-title'>
@@ -319,10 +306,15 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
         </section></div>}
         {!fundOpen && fundMessage && <div className={'fund-toast ' + fundState}>{fundMessage}<button onClick={() => setFundMessage('')} aria-label='Dismiss'><X /></button></div>}
 
-        {!activeService ? <><header className='dash-head'>
-          <div><h1>Welcome back, {firstName}.</h1><p>Choose a service or review your recent orders.</p></div>
+        {isOrdersPage ? <header className='dash-service-hero'>
+          <button onClick={() => { window.location.hash = '#account' }}><ArrowRight /> Back to dashboard</button>
+          <span>YOUR ACCOUNT</span>
+          <h1>Order history</h1>
+          <p>Review every purchase and follow its latest delivery status.</p>
+        </header> : !activeService ? <><header className='dash-head'>
+          <div><h1>Welcome back, {firstName}.</h1><p>Choose a service and get started.</p></div>
           <div className={'dash-head-stats ' + (balance >= 1000000 ? 'balance-expanded' : '')}>
-            <div className='balance-stat'><div className='stat-label'><i><WalletCards /></i><small>Available balance</small></div><strong>{fullNaira(balance)}</strong><span>Ready to spend across every service</span><div className='wallet-actions'><button type='button' onClick={openFunding}><Plus /> Add Money</button><button type='button' onClick={() => goTo('orders')}><History /> History</button></div></div>
+            <div className='balance-stat'><div className='stat-label'><i><WalletCards /></i><small>Available balance</small></div><strong>{fullNaira(balance)}</strong><span>Ready to spend across every service</span><div className='wallet-actions'><button type='button' onClick={openFunding}><Plus /> Add Money</button><button type='button' onClick={openOrderHistory}><History /> History</button></div></div>
             <div className='order-stat'><div className='stat-label'><i><ReceiptText /></i><small>Orders</small></div><strong>{ordersState === 'loading' ? '—' : orders.length}</strong><span>All purchases</span></div>
             <div className='delivered-stat'><div className='stat-label'><i><PackageCheck /></i><small>Delivered</small></div><strong>{ordersState === 'loading' ? '—' : deliveredOrders}</strong><span>Completed</span></div>
           </div>
@@ -333,8 +325,8 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
           <p>Browse available options and choose the package that fits what you need.</p>
         </header>}
 
-        <section className={'dash-layout ' + (!activeService ? 'overview' : 'service-page')}>
-          {!activeService && <aside className='dash-services' id='services'>
+        <section className={'dash-layout ' + (isOrdersPage ? 'orders-page' : !activeService ? 'overview' : 'service-page')}>
+          {!activeService && !isOrdersPage && <aside className='dash-services' id='services'>
             <div className='dash-section-title'><div><span>SERVICES</span><h2>Quick actions</h2></div><small>{String(serviceOrder.length).padStart(2, '0')}</small></div>
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
@@ -357,12 +349,14 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             </div>
           </section> : null}
 
-          {!activeService && <aside className='dash-activity' id='orders'>
-            <div className='activity-head'><div><span>RECENT ORDERS</span><h2>{orders.length ? 'Latest activity' : 'Activity starts here'}</h2></div>{orders.length > 3 && <button type='button' onClick={() => setShowAllOrders((current) => !current)}>{showAllOrders ? 'Show less' : 'View all'} <ArrowRight /></button>}</div>
-            <p>{ordersState === 'error' ? 'We could not load your orders. Refresh to try again.' : orders.length ? 'Track active and completed purchases.' : 'Completed and active orders will appear here.'}</p>
+          {isOrdersPage && <aside className='dash-activity order-history-page' id='orders'>
+            <div className='activity-head'><div><span>ALL ORDERS</span><h2>{orders.length ? `${orders.length} purchase${orders.length === 1 ? '' : 's'}` : 'Activity starts here'}</h2></div></div>
+            <p>{ordersState === 'error' ? 'We could not load your orders. Refresh to try again.' : orders.length ? 'Your latest purchases appear first.' : 'Completed and active orders will appear here.'}</p>
             <div className='activity-list'>
-              {visibleDashboardOrders.map((order) => <article key={`${order.type}-${order.id}`}><i className={deliveredStatuses.has(String(order.status).toLowerCase()) ? 'delivered' : 'pending'}>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><b>{order.type}: {order.item}</b><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}</small></span></article>)}
-              {!recentOrders.length && <div className='activity-empty'><Clock3 /><strong>No orders yet</strong><span>Your purchases will appear here.</span></div>}
+              {ordersState === 'loading' && <div className='activity-empty'><LoaderCircle className='spin' /><strong>Loading orders</strong><span>Checking your latest activity.</span></div>}
+              {ordersState === 'success' && orders.map((order) => <article key={`${order.type}-${order.id}`}><i className={deliveredStatuses.has(String(order.status).toLowerCase()) ? 'delivered' : 'pending'}>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><b>{order.type}: {order.item}</b><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}</small></span></article>)}
+              {ordersState === 'success' && !orders.length && <div className='activity-empty'><Clock3 /><strong>No orders yet</strong><span>Your purchases will appear here.</span></div>}
+              {ordersState === 'error' && <div className='activity-empty'><Clock3 /><strong>Orders unavailable</strong><span>Please refresh the page to try again.</span></div>}
             </div>
           </aside>}
         </section>
