@@ -30,7 +30,8 @@ export default async function handler(request, response) {
       if (!isNumberCountryEnabled(countryId)) return
       const price = Number(details?.cost); const available = Number(details?.count)
       if (!Number.isFinite(price) || !Number.isFinite(available) || available <= 0) return
-      offers.push({ id: `${countryId}:${serviceCode}`, countryId, country: countryNames.get(countryId) || `Country ${countryId}`, serviceCode, service: serviceNames.get(serviceCode) || serviceCode.toUpperCase(), price: koboToNaira(numberSellingPriceKobo(price, '1')), prices: { '1': koboToNaira(numberSellingPriceKobo(price, '1')), '2': koboToNaira(numberSellingPriceKobo(price, '2')), '3': koboToNaira(numberSellingPriceKobo(price, '3')) }, available })
+      const offer = { countryId, serviceCode }
+      offers.push({ id: `${countryId}:${serviceCode}`, countryId, country: countryNames.get(countryId) || `Country ${countryId}`, serviceCode, service: serviceNames.get(serviceCode) || serviceCode.toUpperCase(), price: koboToNaira(numberSellingPriceKobo(price, '1', offer)), prices: { '1': koboToNaira(numberSellingPriceKobo(price, '1', offer)), '2': koboToNaira(numberSellingPriceKobo(price, '2', offer)), '3': koboToNaira(numberSellingPriceKobo(price, '3', offer)) }, available })
     }))
     offers.sort((a, b) => a.price - b.price || b.available - a.available)
     response.setHeader('Cache-Control', 'no-store')

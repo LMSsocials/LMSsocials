@@ -16,7 +16,9 @@ export default function AdminPanel() {
   const [assets, setAssets] = useState([])
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
-  const [pricing, setPricing] = useState({ bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
+  const [pricingServices, setPricingServices] = useState([])
+  const [servicePrices, setServicePrices] = useState({})
+  const [pricingSearch, setPricingSearch] = useState('')
   const [esimPlans, setEsimPlans] = useState([])
   const [esimPrices, setEsimPrices] = useState({})
   const [tools, setTools] = useState([])
@@ -45,7 +47,11 @@ export default function AdminPanel() {
     if (assetsResponse.ok) setAssets(assetsPayload.assets || [])
     if (vouchersResponse.ok) setProducts(vouchersPayload.products || [])
     if (usersResponse.ok) setUsers(usersPayload.users || [])
-    if (pricingResponse.ok) setPricing(pricingPayload.pricing || { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 })
+    if (pricingResponse.ok) {
+      const services = pricingPayload.services || []
+      setPricingServices(services)
+      setServicePrices(Object.fromEntries(services.map((service) => [service.id, String(Number(service.priceKobo || 0) / 100)])))
+    }
     if (esimResponse.ok) {
       const plans = esimPayload.plans || []
       setEsimPlans(plans)
@@ -218,11 +224,14 @@ export default function AdminPanel() {
     setState('loading'); setMessage('')
     const response = await fetch('/api/admin/pricing', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bulkaccMarkupPercent: Number(pricing.bulkaccMarkupPercent), sujanMarkupPercent: Number(pricing.sujanMarkupPercent) }),
+      body: JSON.stringify({ prices: servicePrices }),
     })
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update pricing'); return }
-    setPricing(payload.pricing); setState('success'); setMessage('Supplier markups saved. New catalog prices are now active.')
+    const services = payload.services || []
+    setPricingServices(services)
+    setServicePrices(Object.fromEntries(services.map((service) => [service.id, String(Number(service.priceKobo || 0) / 100)])))
+    setState('success'); setMessage('Exact service prices saved. Catalog and checkout prices are now active.')
   }
 
   const saveEsimPricing = async (event) => {
@@ -317,6 +326,7 @@ export default function AdminPanel() {
   }
 
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
+  const filteredPricingServices = pricingServices.filter((service) => `${service.title} ${service.category} ${service.source}`.toLowerCase().includes(pricingSearch.trim().toLowerCase()))
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
   return <section className='admin-panel'>
@@ -355,12 +365,18 @@ export default function AdminPanel() {
       <aside className='admin-product-list'><div><span>LOG PRODUCTS</span><strong>{products.length}</strong></div>{products.length ? products.map((product) => <article key={product._id}><SocialIcon category={product.category} title={product.title} /><span><strong>{product.title}</strong><small>{money(product.priceKobo)} · {product.stockCount} available</small></span>{editingProductId === product._id
         ? <div className='admin-asset-price-editor admin-product-price-editor'><input aria-label={`New price for ${product.title}`} type='number' min='100' step='50' value={productPrice} onChange={(event) => setProductPrice(event.target.value)} /><button type='button' disabled={state === 'loading'} onClick={() => saveProductPrice(product._id)}>Save</button><button type='button' onClick={() => { setEditingProductId(''); setProductPrice('') }}>Cancel</button></div>
         : <div className='admin-product-actions'><button className='admin-asset-edit' type='button' onClick={() => editProductPrice(product)}>Edit price</button><button className={`admin-product-publish ${product.isPublished ? 'live' : 'draft'}`} type='button' disabled={state === 'loading'} onClick={() => toggleProductPublication(product)}>{product.isPublished ? 'Move to draft' : 'Publish'}</button></div>}<em className={product.isPublished ? 'live' : 'draft'}>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
-    </> : tab === 'pricing' ? <section className='admin-pricing'>
-      <header><SlidersHorizontal /><div><small>SUPPLIER PRICING</small><h3>Set your marketplace margin</h3><p>These percentages are added to the live supplier cost. Changes apply to catalog prices and checkout immediately.</p></div></header>
+    </> : tab === 'pricing' ? <section className='admin-pricing admin-service-pricing'>
+      <header><SlidersHorizontal /><div><small>EXACT SERVICE PRICING</small><h3>Edit each supplier service price</h3><p>Enter the exact amount customers should pay. Saved prices are used in both the catalog and checkout.</p></div></header>
+      <label className='admin-pricing-search'><Search /><input value={pricingSearch} onChange={(event) => setPricingSearch(event.target.value)} placeholder='Search services, categories, or suppliers' /></label>
       <form onSubmit={savePricing}>
-        <label><span>BulkAcc markup</span><div><input type='number' min='0' max='100' step='0.1' value={pricing.bulkaccMarkupPercent} onChange={(event) => setPricing((current) => ({ ...current, bulkaccMarkupPercent: event.target.value }))} required /><strong>%</strong></div><small>For social-account listings supplied by BulkAcc.</small></label>
-        <label><span>Sujan Department markup</span><div><input type='number' min='0' max='100' step='0.1' value={pricing.sujanMarkupPercent} onChange={(event) => setPricing((current) => ({ ...current, sujanMarkupPercent: event.target.value }))} required /><strong>%</strong></div><small>For VPN, proxy, and marketplace listings.</small></label>
-        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Save pricing</button>
+        <div className='admin-service-price-list'>
+          {filteredPricingServices.map((service) => <label key={service.id} className='admin-service-price-row'>
+            <span><strong>{service.title}</strong><small>{service.category} · {service.source === 'bulkacc' ? 'BulkAcc' : 'Sujan Department'}</small></span>
+            <div><strong>₦</strong><input aria-label={`Price for ${service.title}`} type='number' min='100' max='10000000' step='50' value={servicePrices[service.id] ?? ''} onChange={(event) => setServicePrices((current) => ({ ...current, [service.id]: event.target.value }))} required /></div>
+          </label>)}
+          {!filteredPricingServices.length && <p className='admin-service-price-empty'>{pricingServices.length ? 'No services match your search.' : 'Supplier services are temporarily unavailable.'}</p>}
+        </div>
+        <button disabled={state === 'loading' || !pricingServices.length}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Save all service prices</button>
       </form>
     </section> : tab === 'esim' ? <section className='admin-pricing esim-admin-pricing'>
       <header><Wifi /><div><small>eSIM PRICING</small><h3>Set plan prices</h3><p>Leave a price blank to keep that plan unavailable. Customers can only purchase plans with a saved price.</p></div></header>

@@ -141,7 +141,7 @@ async function purchaseSupplierProduct({ userId, source, sourceId, requestId, qu
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
   let product
-  try { product = source === 'bulkacc' ? await bulkProduct(sourceId, quantity) : await sujanProduct(sourceId, pricing, quantity) }
+  try { product = source === 'bulkacc' ? await bulkProduct(sourceId, quantity, pricing) : await sujanProduct(sourceId, pricing, quantity) }
   catch (error) {
     if (error.message === 'INVALID_QUANTITY') return NextResponse.json({ message: 'Choose a valid quantity' }, { status: 400 })
     return NextResponse.json({ message: error.message === 'OUT_OF_STOCK' ? 'The requested quantity is no longer available' : 'Unable to verify supplier stock' }, { status: error.message === 'OUT_OF_STOCK' ? 409 : 502 })

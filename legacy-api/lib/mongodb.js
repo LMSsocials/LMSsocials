@@ -20,7 +20,14 @@ const createClientPromise = () => {
 
 export const getMongoClient = () => {
   if (!globalThis.__lmsMongoClientPromise) {
-    globalThis.__lmsMongoClientPromise = createClientPromise()
+    const connectionPromise = createClientPromise()
+    globalThis.__lmsMongoClientPromise = connectionPromise
+
+    connectionPromise.catch(() => {
+      if (globalThis.__lmsMongoClientPromise === connectionPromise) {
+        globalThis.__lmsMongoClientPromise = undefined
+      }
+    })
   }
   return globalThis.__lmsMongoClientPromise
 }

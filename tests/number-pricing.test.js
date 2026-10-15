@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { SignJWT } from 'jose'
-import { adjustLowNumberPriceKobo, FIXED_NUMBER_OFFER, numberSellingPriceKobo, NUMBER_USD_TO_NGN_RATE, NUMBER_SERVER_MARKUP_PERCENT } from '../lib/number-pricing.js'
+import { adjustLowNumberPriceKobo, applyNumberPriceFloorsKobo, FIXED_NUMBER_OFFER, numberSellingPriceKobo, NUMBER_USD_TO_NGN_RATE, NUMBER_SERVER_MARKUP_PERCENT } from '../lib/number-pricing.js'
 import { verifyNumberQuote } from '../lib/number-provider.js'
 
 test('Low number prices receive varying uplifts instead of a fixed selling price', () => {
@@ -19,13 +19,14 @@ test('Threshold applies only below NGN 1,000 and rejects invalid prices', () => 
   for (const value of [0, -1, NaN, Infinity, 1.5]) assert.throws(() => adjustLowNumberPriceKobo(value))
 })
 
-test('All number tiers obey the minimum, preserving higher supplier-derived prices', () => {
+test('All number tiers obey their minimum, preserving higher supplier-derived prices', () => {
   for (const [serverId, markup] of Object.entries(NUMBER_SERVER_MARKUP_PERCENT)) {
     for (const usd of [0.00001, 0.01, 0.031, 0.043, 0.1, 0.4, 0.7, 1, 10, 100]) {
       const original = Math.ceil(usd * NUMBER_USD_TO_NGN_RATE * (1 + markup / 100) * 100)
       const updated = numberSellingPriceKobo(usd, serverId)
       assert.ok(updated >= 100000)
-      if (original >= 100000) assert.equal(updated, original)
+      const serverFloor = serverId === '2' ? 1000000 : serverId === '3' ? 1500000 : 0
+      if (original >= 100000) assert.equal(updated, Math.max(original, serverFloor))
     }
   }
   assert.equal(numberSellingPriceKobo(0.043, '1'), 118300)
@@ -35,6 +36,28 @@ test('Server 1 pins WhatsApp USA provider 3193 to NGN 3,500', () => {
   assert.equal(numberSellingPriceKobo(1.735, '1', FIXED_NUMBER_OFFER), 350000)
   assert.notEqual(numberSellingPriceKobo(1.735, '1', { ...FIXED_NUMBER_OFFER, providerId: '3194' }), 350000)
   assert.notEqual(numberSellingPriceKobo(1.735, '2', FIXED_NUMBER_OFFER), 350000)
+})
+
+test('UK WhatsApp standard numbers cost at least NGN 6,500', () => {
+  const offer = { countryId: '16', serviceCode: 'wa' }
+  assert.equal(numberSellingPriceKobo(1, '1', offer), 650000)
+  assert.equal(numberSellingPriceKobo(10, '1', offer), 1743814)
+})
+
+test('eSIM-labelled supplier options start around NGN 10,000', () => {
+  assert.equal(numberSellingPriceKobo(1, '2'), 1000000)
+  assert.equal(numberSellingPriceKobo(1, '3'), 1500000)
+  assert.equal(numberSellingPriceKobo(1, '2', { countryId: '43', serviceCode: 'wa' }), 1500000)
+})
+
+test('premium foreign countries enforce regional minimum prices', () => {
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '56' }), 1200000)
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '1001' }), 1500000)
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '173' }), 1500000)
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '175' }), 1200000)
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '78' }), 1000000)
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '86' }), 1000000)
+  assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '36' }), 1000000)
 })
 
 test('Checkout rejects any signed WhatsApp USA provider 3193 price other than NGN 3,500', async () => {
