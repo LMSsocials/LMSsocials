@@ -197,7 +197,15 @@ export default function LogsMarketplace() {
             </div> : <div className='log-delivery-processing'><LoaderCircle className='spin' /><div><strong>Preparing your log details</strong><p>Keep this checkout open. Your details will appear here automatically as soon as delivery completes.</p></div></div>}
             <button className='log-delivery-done' type='button' onClick={closeCheckout}>Close</button>
           </div> : <div className='log-checkout-body'>
-            <label>Select quantity</label>
+            <div className='log-checkout-product'>
+              <div className='log-checkout-product-image'>{selectedProduct.imageUrl ? <img src={selectedProduct.imageUrl} alt='' /> : <SocialIcon category={selectedProduct.category} title={selectedProduct.title} />}</div>
+              <div><h3>{selectedProduct.title}</h3><p><span>{selectedProduct.stockCount} in stock</span><strong>{money(selectedProduct.priceKobo)}</strong></p></div>
+            </div>
+            <div className='log-checkout-description'>
+              <span>DELIVERY DETAILS</span>
+              <div><BadgeCheck /><p><strong>Secure delivery after purchase</strong><small>{selectedProduct.description || 'Your purchased item will appear securely in your order history.'}</small></p></div>
+            </div>
+            <label>Quantity</label>
             <div className='log-quantity-picker'>
               <button type='button' onClick={() => setQuantity((current) => Math.max(1, current - 1))} disabled={quantity <= 1 || Boolean(buying)} aria-label='Decrease quantity'><Minus /></button>
               <input type='number' min='1' max={Math.min(100, selectedProduct.stockCount)} value={quantity} onChange={(event) => setQuantity(Math.max(1, Math.min(100, selectedProduct.stockCount, Number(event.target.value) || 1)))} aria-label='Quantity' />
@@ -209,7 +217,7 @@ export default function LogsMarketplace() {
               <p className='total'><span>Total</span><strong>{money(selectedProduct.priceKobo * quantity)}</strong></p>
             </div>
             {checkoutError && <p className='log-checkout-error'>{checkoutError}</p>}
-            <button className='log-confirm-purchase' type='button' disabled={Boolean(buying)} onClick={() => purchase(selectedProduct, quantity)}>{buying ? <LoaderCircle className='spin' /> : <ShoppingBag />} {buying ? 'Completing purchase…' : `Confirm purchase · ${money(selectedProduct.priceKobo * quantity)}`}</button>
+            <button className='log-confirm-purchase' type='button' disabled={Boolean(buying)} onClick={() => purchase(selectedProduct, quantity)}>{buying ? <LoaderCircle className='spin' /> : <ShoppingBag />} {buying ? 'Completing purchase…' : `Buy now · ${money(selectedProduct.priceKobo * quantity)}`}</button>
           </div>}
         </section>
       </div>}

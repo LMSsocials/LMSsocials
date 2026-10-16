@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
-  ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2, ImageIcon,
+  ArrowLeft, ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2, ImageIcon,
   Gem, Headphones, History, LoaderCircle, LogOut, Menu, PackageCheck, Plus, ReceiptText, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wifi, Wrench, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
@@ -242,6 +242,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     <main className='dash-page'>
       <section className='dash-frame' id='dashboard'>
         <nav className='dash-nav'>
+          <button className='dash-menu-toggle' aria-label='Open menu' aria-controls='mobile-dashboard-menu' aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu /></button>
           <a className='logo dash-brand' href='#top' aria-label='LMS Socials home'><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
           <div className={'dash-nav-links ' + (mobileMenuOpen ? 'open' : '')} id='mobile-dashboard-menu'>
             <div className='dash-mobile-menu-head'>
@@ -270,7 +271,6 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             <button className='notification-trigger' aria-label={hasUnreadNotifications ? `${unreadNotificationCount} unread notifications` : 'Notifications'} aria-controls='dashboard-notifications' aria-expanded={notificationOpen} onClick={toggleNotifications}><Bell />{hasUnreadNotifications && <span className='notification-count'>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}</button>
             <button className='dash-avatar' title={user.email}>{name.charAt(0).toUpperCase()}</button>
             <button aria-label='Sign out' onClick={onSignOut}><LogOut /></button>
-            <button className='dash-menu-toggle' aria-label='Open menu' aria-controls='mobile-dashboard-menu' aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu /></button>
           </div>
         </nav>
         {notificationOpen && <><button className='notification-backdrop' aria-label='Close notifications' onClick={() => setNotificationOpen(false)} /><section className='notification-panel' id='dashboard-notifications' role='dialog' aria-modal='true' aria-labelledby='notification-title'>
@@ -309,7 +309,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
         {!fundOpen && fundMessage && <div className={'fund-toast ' + fundState}>{fundMessage}<button onClick={() => setFundMessage('')} aria-label='Dismiss'><X /></button></div>}
 
         {isOrdersPage ? <header className='dash-service-hero'>
-          <button onClick={() => { window.location.hash = '#account' }}><ArrowRight /> Back to dashboard</button>
+          <button className='dash-back-button' onClick={() => { window.location.hash = '#account' }}><ArrowLeft /> Back to dashboard</button>
           <span>YOUR ACCOUNT</span>
           <h1>Order history</h1>
           <p>Review every purchase and follow its latest delivery status.</p>
@@ -321,7 +321,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             <div className='delivered-stat'><div className='stat-label'><i><PackageCheck /></i><small>Delivered</small></div><strong>{ordersState === 'loading' ? '—' : deliveredOrders}</strong><span>Completed</span></div>
           </div>
         </header></> : <header className='dash-service-hero'>
-          <button onClick={() => { window.location.hash = '#account' }}><ArrowRight /> Back to dashboard</button>
+          <button className='dash-back-button' onClick={() => { window.location.hash = '#account' }}><ArrowLeft /> Back to dashboard</button>
           <span>SERVICE MARKETPLACE</span>
           <h1>{serviceMeta[activeService].label}</h1>
           <p>Browse available options and choose the package that fits what you need.</p>
