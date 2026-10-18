@@ -82,10 +82,10 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const page = route.startsWith('#account/') ? route.slice('#account/'.length) : 'overview'
   const activeService = serviceMeta[page] ? page : null
   const isOrdersPage = page === 'orders'
+  const isFundingPage = page === 'fund'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const user = session.user
   const [balance, setBalance] = useState(Number(user.balance || 0))
-  const [fundOpen, setFundOpen] = useState(false)
   const [fundState, setFundState] = useState('idle')
   const [fundMessage, setFundMessage] = useState('')
   const [fundAccount, setFundAccount] = useState(null)
@@ -136,6 +136,29 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     }
   }, [])
 
+  const loadFundingAccount = useCallback(async () => {
+    setFundState('loading')
+    setFundMessage('')
+    try {
+      const response = await fetch('/api/payments/pocketfi/account', { cache: 'no-store' })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.message || 'Unable to load account details')
+      if (payload.account) {
+        setFundAccount(payload.account)
+        setFundState('idle')
+        return
+      }
+      const createResponse = await fetch('/api/payments/pocketfi/account', { method: 'POST' })
+      const created = await createResponse.json().catch(() => ({}))
+      if (!createResponse.ok) throw new Error(created.message || 'Unable to generate account')
+      setFundAccount(created.account)
+      setFundState('success')
+    } catch (error) {
+      setFundState('error')
+      setFundMessage(error instanceof Error ? error.message : 'Unable to load account details')
+    }
+  }, [])
+
   useEffect(() => {
     if (!showWelcomeOffer) return undefined
     setOfferSeconds(5 * 60)
@@ -179,7 +202,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   }, [loadOrders])
 
   useEffect(() => {
-    if (activeService && !isOrdersPage) return undefined
+    if ((activeService && !isOrdersPage) || isFundingPage) return undefined
     loadOrders()
     const refresh = () => { if (!document.hidden) loadOrders({ quiet: true }) }
     const timer = window.setInterval(refresh, 120_000)
@@ -190,7 +213,12 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [activeService, isOrdersPage, loadOrders])
+  }, [activeService, isFundingPage, isOrdersPage, loadOrders])
+
+  useEffect(() => {
+    if (!isFundingPage || fundAccount || fundState !== 'idle') return
+    loadFundingAccount()
+  }, [fundAccount, fundState, isFundingPage, loadFundingAccount])
 
   const notificationOrders = orders.slice(0, 5)
   const unreadNotificationCount = orders.filter((order) => !seenNotificationKeys.includes(notificationKey(order))).length
@@ -209,20 +237,10 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     try { localStorage.setItem(`lms-notifications-seen:${user.id}`, JSON.stringify(nextSeenKeys)) } catch { return }
   }
 
-  async function openFunding() {
-    setFundOpen(true); setFundState('loading'); setFundMessage('')
-    try {
-      const response = await fetch('/api/payments/pocketfi/account')
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(payload.message || 'Unable to load account details')
-      if (payload.account) {
-        setFundAccount(payload.account); setFundState('idle'); return
-      }
-      const createResponse = await fetch('/api/payments/pocketfi/account', { method: 'POST' })
-      const created = await createResponse.json().catch(() => ({}))
-      if (!createResponse.ok) throw new Error(created.message || 'Unable to generate account')
-      setFundAccount(created.account); setFundState('success')
-    } catch (error) { setFundState('error'); setFundMessage(error.message) }
+  function openFunding() {
+    setMobileMenuOpen(false)
+    setNotificationOpen(false)
+    window.location.hash = '#account/fund'
   }
 
   function fundFromWelcome() {
@@ -252,8 +270,8 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
               <div><strong>{name}</strong><small>{user.email}</small></div>
             </div>
             <div className='dash-mobile-menu-scroll'>
-              <button className={!activeService && !isOrdersPage ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
-              <button onClick={() => { openFunding(); setMobileMenuOpen(false) }}><WalletCards /> Fund wallet</button>
+              <button className={!activeService && !isOrdersPage && !isFundingPage ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
+              <button className={isFundingPage ? 'active' : ''} onClick={openFunding}><WalletCards /> Fund wallet</button>
               <div className='dash-menu-group'>SERVICES</div>
               <button onClick={() => { window.location.hash = '#account/boosting'; setMobileMenuOpen(false) }}><TrendingUp /> Boost account</button>
               <button className={activeService === 'numbers' ? 'active' : ''} onClick={() => { window.location.hash = '#account/numbers'; setMobileMenuOpen(false) }}><Globe2 /> Foreign numbers</button>
@@ -297,20 +315,12 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
           <button className='welcome-offer-later' type='button' onClick={onCloseWelcomeOffer}>Maybe later</button>
           <div className='welcome-offer-timer'>AUTO CLOSES IN <b>{String(Math.floor(offerSeconds / 60)).padStart(2, '0')}:{String(offerSeconds % 60).padStart(2, '0')}</b></div>
         </section></div>}
-        {fundOpen && <div className='fund-modal-backdrop' role='presentation' onMouseDown={() => fundState !== 'loading' && setFundOpen(false)}><section className='fund-modal' role='dialog' aria-modal='true' aria-labelledby='fund-wallet-title' onMouseDown={(event) => event.stopPropagation()}>
-          <header><span><WalletCards /></span><div><small>BANK TRANSFER</small><h2 id='fund-wallet-title'>Fund your wallet</h2><p>Transfer to your dedicated account from any Nigerian bank.</p></div><button type='button' aria-label='Close funding dialog' onClick={() => setFundOpen(false)}><X /></button></header>
-          {fundState === 'loading' && !fundAccount ? <div className='fund-loading'><LoaderCircle className='spin' /><span>Getting your account details...</span></div> : fundAccount ? <div className='fund-account'>
-            <div className='fund-account-bank'><span><Building2 /></span><div><small>BANK</small><strong>{fundAccount.bankName}</strong></div></div>
-            <div className='fund-account-number'><small>ACCOUNT NUMBER</small><strong>{fundAccount.accountNumber}</strong><button type='button' onClick={copyAccountNumber}>{accountCopied ? <Check /> : <Copy />}{accountCopied ? 'Copied' : 'Copy'}</button></div>
-            <div className='fund-account-name'><small>ACCOUNT NAME</small><strong>{fundAccount.accountName}</strong></div>
-            {fundMessage && <p className={fundState}>{fundMessage}</p>}
-            <div className='fund-note'>Make a bank transfer to this account. Your wallet updates automatically after PocketFi confirms the payment.</div>
-          </div> : <div className='fund-loading fund-loading-error'><span>{fundMessage || 'Your dedicated account is not available yet.'}</span><button type='button' onClick={openFunding}>Try again</button></div>}
-          <footer>Only transfers confirmed by PocketFi are added to your wallet balance.</footer>
-        </section></div>}
-        {!fundOpen && fundMessage && <div className={'fund-toast ' + fundState}>{fundMessage}<button onClick={() => setFundMessage('')} aria-label='Dismiss'><X /></button></div>}
-
-        {isOrdersPage ? <header className='dash-service-hero'>
+        {isFundingPage ? <header className='dash-service-hero fund-page-hero'>
+          <button className='dash-back-button' onClick={() => { window.location.hash = '#account' }}><ArrowLeft /> Back to dashboard</button>
+          <span>YOUR LMS WALLET</span>
+          <h1>Add money</h1>
+          <p>Fund your wallet securely by transferring to your personal LMS account.</p>
+        </header> : isOrdersPage ? <header className='dash-service-hero'>
           <button className='dash-back-button' onClick={() => { window.location.hash = '#account' }}><ArrowLeft /> Back to dashboard</button>
           <span>YOUR ACCOUNT</span>
           <h1>Order history</h1>
@@ -329,8 +339,37 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
           <p>Browse available options and choose the package that fits what you need.</p>
         </header>}
 
-        <section className={'dash-layout ' + (isOrdersPage ? 'orders-page' : !activeService ? 'overview' : 'service-page')}>
-          {!activeService && !isOrdersPage && <aside className='dash-services' id='services'>
+        <section className={'dash-layout ' + (isFundingPage ? 'funding-page' : isOrdersPage ? 'orders-page' : !activeService ? 'overview' : 'service-page')}>
+          {isFundingPage && <section className='fund-page' aria-labelledby='fund-page-account-title'>
+            <article className='fund-balance-card'>
+              <div><span><WalletCards /> AVAILABLE BALANCE</span><strong>{fullNaira(balance)}</strong><small>Ready to spend across every LMS service</small></div>
+              <i><Sparkles /></i>
+            </article>
+            <div className='fund-page-grid'>
+              <article className='fund-transfer-card'>
+                <div className='fund-card-heading'><span><Building2 /></span><div><small>INSTANT BANK TRANSFER</small><h2 id='fund-page-account-title'>Your dedicated account</h2><p>Transfer any amount from your banking app. This account belongs only to you.</p></div></div>
+                {fundState === 'loading' && !fundAccount ? <div className='fund-page-loading'><LoaderCircle className='spin' /><strong>Preparing your account</strong><span>This should only take a moment.</span></div> : fundAccount ? <div className='fund-page-account'>
+                  <div className='fund-bank-row'><span><Building2 /></span><div><small>BANK NAME</small><strong>{fundAccount.bankName}</strong></div><em>ACTIVE</em></div>
+                  <div className='fund-number-block'><small>ACCOUNT NUMBER</small><strong>{fundAccount.accountNumber}</strong><button type='button' onClick={copyAccountNumber}>{accountCopied ? <Check /> : <Copy />}{accountCopied ? 'Copied' : 'Copy number'}</button></div>
+                  <div className='fund-name-row'><span>ACCOUNT NAME</span><strong>{fundAccount.accountName}</strong></div>
+                  {fundState === 'success' && <p className='fund-page-success'><Check /> Your dedicated account is ready to receive transfers.</p>}
+                </div> : <div className='fund-page-error'><strong>We couldn&apos;t prepare your account.</strong><span>{fundMessage || 'Please try again in a moment.'}</span><button type='button' onClick={loadFundingAccount}>Try again</button></div>}
+                <div className='fund-transfer-note'><ShieldCheck /><span><strong>Secure wallet funding</strong><small>Only transfers confirmed by our payment partner are credited.</small></span></div>
+              </article>
+              <aside className='fund-guide-card'>
+                <small>HOW IT WORKS</small>
+                <h2>Money in. Ready to go.</h2>
+                <div className='fund-steps'>
+                  <div><b>01</b><span><strong>Copy your account</strong><small>Use the dedicated account number shown here.</small></span></div>
+                  <div><b>02</b><span><strong>Make a bank transfer</strong><small>Send any amount from a Nigerian banking app.</small></span></div>
+                  <div><b>03</b><span><strong>Get credited automatically</strong><small>Your LMS balance updates after payment confirmation.</small></span></div>
+                </div>
+                <div className='fund-help-card'><Send /><span><strong>Need help with a transfer?</strong><small>Customer care is available on Telegram.</small></span><a href='https://t.me/lurdmorrestsupport' target='_blank' rel='noreferrer'>Chat now <ArrowRight /></a></div>
+              </aside>
+            </div>
+          </section>}
+
+          {!activeService && !isOrdersPage && !isFundingPage && <aside className='dash-services' id='services'>
             <div className='dash-section-title'><div><span>SERVICES</span><h2>Quick actions</h2></div><small>{String(serviceOrder.length).padStart(2, '0')}</small></div>
             {serviceOrder.map((key) => {
               const item = serviceMeta[key]
