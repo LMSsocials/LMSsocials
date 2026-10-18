@@ -10,6 +10,7 @@ const brandLogos = {
   'Apple ID': ['apple', '000000'],
   SoundCloud: ['soundcloud', 'FF5500'], Roblox: ['roblox', '000000'], Twitch: ['twitch', '9146FF'],
   Yelp: ['yelp', 'D32323'],
+  OnlyFans: ['onlyfans', '00AFF0'],
 }
 
 const textPlusLogo = 'https://play-lh.googleusercontent.com/a9kW-OSwOC0_au9tEr6GyVHM5WwugvvR-Yp9ftt9jxrnKr3JCWe9PHgpnzQ5_3RW1lVNhoVh2A8s7qxk7ax-9A=s0-br30'
@@ -17,7 +18,7 @@ const chatGptLogo = 'https://cdn.oaistatic.com/assets/favicon-miwirzcw.ico'
 
 const fallbackIcons = {
   'Google Voice': Phone, Proxy: Network, 'LMS Socials': PackageOpen, All: LayoutGrid,
-  TikTok: Music2, Reddit: MessageCircle, Gmail: Mail, 'X / Twitter': Send, Discord: Gamepad2, Pinterest: Pin,
+  TikTok: Music2, Reddit: MessageCircle, Gmail: Mail, Email: Mail, 'X / Twitter': Send, Discord: Gamepad2, Pinterest: Pin,
 }
 
 function vpnProviderLogo(title) {

@@ -1,6 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, BadgeCheck, Copy, CircleUserRound, LayoutGrid, LoaderCircle, Minus, PackageOpen, Plus, Search, ShoppingBag, X } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowLeft, ArrowRight, BadgeCheck, Copy, CircleUserRound, LayoutGrid, LoaderCircle, Minus, PackageOpen, Plus, Search, Send, ShoppingBag, X } from 'lucide-react'
 import SocialIcon from './SocialIcon'
+import logoImage from '../public/assets/lms-logo-clean.png'
+import editorialRed from '../public/assets/logs-editorial-red-v2.png'
+import editorialLight from '../public/assets/logs-editorial-light-v2.png'
+
+const carouselSlides = [
+  {
+    image: editorialRed,
+    theme: 'red',
+    eyebrow: 'LMS LOGS · VERSION 1.5',
+    title: <>Premium logs.<br />Ready when you are.</>,
+    description: 'Quality social accounts, simple checkout and instant delivery—all in one place.',
+    cta: 'Browse the collection',
+  },
+  {
+    image: editorialLight,
+    theme: 'light',
+    eyebrow: 'CUSTOMER CARE · ALWAYS CLOSE',
+    title: <>Real support.<br />Right when you need it.</>,
+    description: 'Questions before or after your order? Talk directly with LMS customer care on Telegram.',
+    cta: 'Chat on Telegram',
+    href: 'https://t.me/lurdmorrestsupport',
+  },
+]
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 const requestId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -40,6 +64,8 @@ export default function LogsMarketplace() {
   const [completedOrder, setCompletedOrder] = useState(null)
   const [deliveryCopied, setDeliveryCopied] = useState(false)
   const [directoryOpen, setDirectoryOpen] = useState(true)
+  const [activeSlide, setActiveSlide] = useState(0)
+  const [carouselPaused, setCarouselPaused] = useState(false)
 
   const load = async () => {
     setState('loading')
@@ -59,6 +85,12 @@ export default function LogsMarketplace() {
   }
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    if (carouselPaused) return undefined
+    const timer = window.setInterval(() => setActiveSlide((current) => (current + 1) % carouselSlides.length), 6500)
+    return () => window.clearInterval(timer)
+  }, [carouselPaused])
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((product) => product.category).filter(Boolean))).sort()], [products])
   const visibleProducts = products.filter((product) => {
@@ -147,7 +179,31 @@ export default function LogsMarketplace() {
 
   return (
     <section className='logs-market voucher-market'>
-      <header className='logs-head logs-directory-head'>
+      <section className='logs-carousel logs-carousel-v2' aria-roledescription='carousel' aria-label='LMS Logs highlights' onMouseEnter={() => setCarouselPaused(true)} onMouseLeave={() => setCarouselPaused(false)} onFocusCapture={() => setCarouselPaused(true)} onBlurCapture={() => setCarouselPaused(false)}>
+        <div className='logs-carousel-track' style={{ transform: `translateX(-${activeSlide * 100}%)` }}>
+          {carouselSlides.map((slide, index) => {
+            const action = slide.href
+              ? <a className='logs-carousel-cta telegram' href={slide.href} target='_blank' rel='noreferrer' tabIndex={index === activeSlide ? 0 : -1}><Send /> {slide.cta}</a>
+              : <button className='logs-carousel-cta' type='button' tabIndex={index === activeSlide ? 0 : -1} onClick={() => document.getElementById('logs-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{slide.cta} <ArrowRight /></button>
+            return <article key={slide.theme} className={`logs-carousel-slide logs-slide-${slide.theme} ${index === activeSlide ? 'active' : ''}`} aria-hidden={index !== activeSlide}>
+              <Image className='logs-carousel-art' src={slide.image} alt='' fill priority={index === 0} sizes='(max-width: 720px) 100vw, 1100px' />
+              <div className='logs-carousel-copy'>
+                <span className='logs-carousel-brand'><Image src={logoImage} alt='' sizes='54px' /> <b>SOCIALS</b></span>
+                <small>{slide.eyebrow}</small>
+                <h2>{slide.title}</h2>
+                <p>{slide.description}</p>
+                {action}
+              </div>
+            </article>
+          })}
+        </div>
+        <button className='logs-carousel-arrow previous' type='button' aria-label='Previous promotion' onClick={() => setActiveSlide((current) => (current - 1 + carouselSlides.length) % carouselSlides.length)}><ArrowLeft /></button>
+        <button className='logs-carousel-arrow next' type='button' aria-label='Next promotion' onClick={() => setActiveSlide((current) => (current + 1) % carouselSlides.length)}><ArrowRight /></button>
+        <div className='logs-carousel-dots' role='tablist' aria-label='Choose promotion'>
+          {carouselSlides.map((slide, index) => <button key={slide.theme} type='button' className={index === activeSlide ? 'active' : ''} aria-label={`Show promotion ${index + 1}`} aria-selected={index === activeSlide} role='tab' onClick={() => setActiveSlide(index)} />)}
+        </div>
+      </section>
+      <header className='logs-head logs-directory-head' id='logs-catalog'>
         <div><span>BUY LOGS</span><h2>{browsingProducts ? categoryLabel(category) : 'Choose a service'}</h2><p>{browsingProducts ? 'Choose a listing and receive your details securely after purchase.' : 'Select a category to view its available products.'}</p></div>
         <div className='voucher-trust'><BadgeCheck /><span><strong>Secure delivery</strong><small>Codes stay private until purchase</small></span></div>
       </header>

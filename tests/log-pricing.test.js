@@ -49,6 +49,15 @@ test('Log products are grouped under their actual platforms', () => {
   assert.equal(logCategory('Other', 'Aged USA Twitch account'), 'Twitch')
   assert.equal(logCategory('Other', 'USA Yelp account with email access'), 'Yelp')
   assert.equal(logCategory('Other', 'USA LinkedIn with Gmail access'), 'LinkedIn')
+  assert.equal(logCategory('Other', 'Onlyfans account with 2FA'), 'OnlyFans')
+  assert.equal(logCategory('Other', 'GMX Email with IMAP enabled'), 'Email')
+})
+
+test('Requested live BulkAcc products remain in the storefront allowlist', () => {
+  const requestedCodes = ['204743', '201020', '202060', '201112']
+  const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
+  assert.deepEqual(definitions.map((item) => item.code), requestedCodes)
+  assert.ok(definitions.every((item) => item.useLiveDetails === true))
 })
 
 test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {

@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
   ArrowLeft, ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2, ImageIcon,
-  Gem, Headphones, History, LoaderCircle, LogOut, Menu, PackageCheck, Plus, ReceiptText, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wifi, Wrench, X,
+  Gem, History, LoaderCircle, LogOut, Menu, PackageCheck, Plus, ReceiptText, Send, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wifi, Wrench, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
 
@@ -111,8 +111,6 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
-  const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-
   const loadOrders = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setOrdersState('loading')
     try {
@@ -249,6 +247,10 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
               <a className='logo' href='#top' onClick={() => setMobileMenuOpen(false)}><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
+            <div className='dash-mobile-profile'>
+              <span>{name.charAt(0).toUpperCase()}</span>
+              <div><strong>{name}</strong><small>{user.email}</small></div>
+            </div>
             <div className='dash-mobile-menu-scroll'>
               <button className={!activeService && !isOrdersPage ? 'active' : ''} onClick={() => { window.location.hash = '#account'; setMobileMenuOpen(false) }}><Grid2X2 /> Dashboard</button>
               <button onClick={() => { openFunding(); setMobileMenuOpen(false) }}><WalletCards /> Fund wallet</button>
@@ -262,7 +264,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
               <button className={activeService === 'pictures' ? 'active' : ''} onClick={() => { window.location.hash = '#account/pictures'; setMobileMenuOpen(false) }}><ImageIcon /> Working Pictures</button>
               <div className='dash-menu-group'>ACCOUNT</div>
               <button className={isOrdersPage ? 'active' : ''} onClick={openOrderHistory}><ReceiptText /> Order history</button>
-              <button onClick={() => { goTo('support'); setMobileMenuOpen(false) }}><Headphones /> Help & support</button>
+              <a className='dash-support-link' href='https://t.me/lurdmorrestsupport' target='_blank' rel='noreferrer' onClick={() => setMobileMenuOpen(false)}><i><Send /></i><span><strong>Customer care</strong><small>Chat with LMS support</small></span><ArrowRight /></a>
               {user.isAdmin && <button className={activeService === 'admin' ? 'active' : ''} onClick={() => { window.location.hash = '#account/admin'; setMobileMenuOpen(false) }}><ShieldCheck /> Admin uploads</button>}
               <button className='mobile-signout' onClick={onSignOut}><LogOut /> Sign out</button>
             </div>
@@ -335,7 +337,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
               const Icon = item.icon
               return <button key={key} onClick={() => { window.location.hash = '#account/' + key }}><i><Icon /></i><span><strong>{item.label}</strong><small>{!item.hideMeta && <b>{catalog[key].length} offers</b>}<em>Tap to open</em></small></span><ArrowRight /></button>
             })}
-            <div className='dash-help' id='support'><Headphones /><div><strong>Need some help?</strong><small>Our support team is ready.</small></div><a href='mailto:hello@lmssocials.com'>Contact support</a></div>
+            <div className='dash-help' id='support'><span className='telegram-support-logo'><Send /></span><div><strong>Need some help?</strong><small>Our LMS customer care team is ready on Telegram.</small></div><a href='https://t.me/lurdmorrestsupport' target='_blank' rel='noreferrer'>Chat with support</a></div>
           </aside>}
 
           {activeService === 'logs' ? <LogsMarketplace /> : activeService === 'boosting' ? <BoostMarketplace /> : activeService === 'numbers' ? <NumbersMarketplace key={user.id} userId={user.id} /> : activeService === 'format' ? <FormatMarketplace /> : activeService === 'esim' ? <EsimMarketplace /> : activeService === 'tools' ? <ToolsMarketplace /> : activeService === 'pictures' ? <PicturesMarketplace /> : activeService === 'admin' && user.isAdmin ? <AdminPanel /> : activeService ? <section className='dash-catalog'>
@@ -362,6 +364,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             </div>
           </aside>}
         </section>
+        <a className='dashboard-support-fab' href='https://t.me/lurdmorrestsupport' target='_blank' rel='noreferrer' aria-label='Open LMS customer care on Telegram'><Send /></a>
       </section>
     </main>
   )
