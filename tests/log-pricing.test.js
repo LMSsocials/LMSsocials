@@ -54,7 +54,7 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['204743', '201020', '202060', '201112']
+  const requestedCodes = ['201231', '202351', '202962', '203011', '201182', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code), requestedCodes)
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
