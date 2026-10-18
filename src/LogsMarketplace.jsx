@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { ArrowLeft, ArrowRight, BadgeCheck, Copy, CircleUserRound, LayoutGrid, LoaderCircle, Minus, PackageOpen, Plus, Search, Send, ShoppingBag, X } from 'lucide-react'
 import SocialIcon from './SocialIcon'
@@ -66,6 +67,8 @@ export default function LogsMarketplace() {
   const [directoryOpen, setDirectoryOpen] = useState(true)
   const [activeSlide, setActiveSlide] = useState(0)
   const [carouselPaused, setCarouselPaused] = useState(false)
+  const checkoutCloseRef = useRef(null)
+  const checkoutReturnFocusRef = useRef(null)
 
   const load = async () => {
     setState('loading')
@@ -91,6 +94,31 @@ export default function LogsMarketplace() {
     const timer = window.setInterval(() => setActiveSlide((current) => (current + 1) % carouselSlides.length), 6500)
     return () => window.clearInterval(timer)
   }, [carouselPaused])
+
+  useEffect(() => {
+    if (!selectedProduct) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusFrame = window.requestAnimationFrame(() => checkoutCloseRef.current?.focus())
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.body.style.overflow = previousOverflow
+      checkoutReturnFocusRef.current?.focus?.()
+    }
+  }, [selectedProduct])
+
+  useEffect(() => {
+    if (!selectedProduct) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape' || buying) return
+      setSelectedProduct(null)
+      setCheckoutError('')
+      setCompletedOrder(null)
+      setDeliveryCopied(false)
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [selectedProduct, buying])
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((product) => product.category).filter(Boolean))).sort()], [products])
   const visibleProducts = products.filter((product) => {
@@ -135,6 +163,7 @@ export default function LogsMarketplace() {
 
   function openCheckout(product) {
     if (!product.stockCount || buying) return
+    checkoutReturnFocusRef.current = document.activeElement
     setSelectedProduct(product)
     setQuantity(1)
     setCheckoutError('')
@@ -238,11 +267,11 @@ export default function LogsMarketplace() {
         {!visibleProducts.length && <div className='logs-empty'><CircleUserRound /><strong>No logs found</strong><span>Try another search or category.</span></div>}
       </div>}
 
-      {selectedProduct && <div className='log-checkout-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout() }}>
+      {selectedProduct && createPortal(<div className='log-checkout-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout() }}>
         <section className='log-checkout' role='dialog' aria-modal='true' aria-labelledby='log-checkout-title'>
           <header>
             <div><span>{completedOrder ? 'PURCHASE COMPLETE' : 'PURCHASE CONFIGURATION'}</span><h2 id='log-checkout-title'>{completedOrder?.productTitle || selectedProduct.title}</h2><p>{completedOrder ? `${completedOrder.quantity || quantity} ${(completedOrder.quantity || quantity) === 1 ? 'log' : 'logs'} purchased · ${money(completedOrder.priceKobo)}` : `${money(selectedProduct.priceKobo)} per log · ${selectedProduct.stockCount} available`}</p></div>
-            <button type='button' onClick={closeCheckout} aria-label='Close checkout'><X /></button>
+            <button ref={checkoutCloseRef} type='button' onClick={closeCheckout} aria-label='Close checkout'><X /></button>
           </header>
           {completedOrder ? <div className='log-delivery-body'>
             <div className='log-delivery-success'><BadgeCheck /><div><h3>Purchase successful</h3><p>Your purchased login details are displayed immediately below.</p></div></div>
@@ -276,7 +305,7 @@ export default function LogsMarketplace() {
             <button className='log-confirm-purchase' type='button' disabled={Boolean(buying)} onClick={() => purchase(selectedProduct, quantity)}>{buying ? <LoaderCircle className='spin' /> : <ShoppingBag />} {buying ? 'Completing purchase…' : `Buy now · ${money(selectedProduct.priceKobo * quantity)}`}</button>
           </div>}
         </section>
-      </div>}
+      </div>, document.body)}
 
       <section className='voucher-orders'>
         <div className='dash-section-title'><div><span>ORDER HISTORY</span><h2>Your purchased logs</h2></div><small>{orders.length}</small></div>
