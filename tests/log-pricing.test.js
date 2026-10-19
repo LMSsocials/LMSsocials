@@ -63,10 +63,32 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['201231', '202351', '202962', '203011', '201182', '201082', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code), requestedCodes)
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
+})
+
+test('Requested Snapchat products are assigned to the Snapchat category', () => {
+  const definitions = BULKACC_LOG_PRODUCTS.filter((item) => ['200313', '200305'].includes(item.code))
+  assert.equal(definitions.length, 2)
+  assert.ok(definitions.every((item) => item.category === 'Snapchat'))
+  assert.ok(definitions.every((item) => item.expected.test(item.title)))
+})
+
+test('Snapchat products use the approved storefront prices', () => {
+  const prices = Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.code, item.priceKobo]))
+  assert.deepEqual(Object.fromEntries(['200303', '203027', '201231', '202351', '202962', '203011', '201182', '200313', '200305'].map((code) => [code, prices[code]])), {
+    '200303': 600000,
+    '203027': 6700000,
+    '201231': 6700000,
+    '202351': 6700000,
+    '202962': 5400000,
+    '203011': 6700000,
+    '201182': 2800000,
+    '200313': 1100000,
+    '200305': 700000,
+  })
 })
 
 test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {
@@ -88,7 +110,7 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   assert.equal(robloxProducts.length, 8)
   assert.ok(chatGptProducts.every((item) => item.priceKobo === 1000000))
   assert.ok(robloxProducts.every((item) => item.priceKobo === 400000))
-  assert.equal(prices['Italy Snapchat with Gmail Access'], 9000000)
+  assert.equal(prices['Italy Snapchat with Gmail Access'], 6700000)
   assert.equal(prices['USA LinkedIn with Gmail Access and 2FA'], 10593440)
   assert.equal(prices['USA Spotify with Email Access'], 773760)
   assert.equal(prices['USA Yelp with Email Access'], 1000000)
