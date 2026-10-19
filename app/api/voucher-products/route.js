@@ -64,7 +64,7 @@ export async function GET() {
     ...managed.map((product) => ({ ...product, _id: `managed:${product._id}`, source: 'managed', brand: 'LMS Socials' })),
     ...(supplierItems.bulkacc || []),
     ...(supplierItems.sujan || []),
-  ].filter((product) => !isHiddenLogProduct(product.title))
+  ].filter((product) => product.source === 'sujan' || !isHiddenLogProduct(product.title))
     .sort((a, b) => Number(b.source === 'managed') - Number(a.source === 'managed') || a.category.localeCompare(b.category) || a.title.localeCompare(b.title))
 
   return NextResponse.json({ products: products.map((product) => {

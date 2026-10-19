@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, bulkMarkedUpPriceKobo, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, logCategory } from '../lib/log-providers.js'
+import { applyLogPriceRules, bulkMarkedUpPriceKobo, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
@@ -36,11 +36,20 @@ test('Removed supplier listings stay hidden', () => {
   assert.equal(isHiddenLogProduct('USA FACEBOOK PAGE CREATE ALREADY'), false)
 })
 
+test('Sujan hides only Gmail services', () => {
+  assert.equal(isHiddenSujanProduct({ name: 'OLD GMAIL 2024', category: { name: 'Gmail' } }), true)
+  assert.equal(isHiddenSujanProduct({ name: 'Fresh Gmail Accounts', platform: { name: 'Google Gmail' } }), true)
+  assert.equal(isHiddenSujanProduct({ name: 'USA LinkedIn with Gmail access', category: { name: 'LinkedIn' } }), false)
+  assert.equal(isHiddenSujanProduct({ name: 'USA Snapchat registered with Gmail', platform: { name: 'Snapchat' } }), false)
+  assert.equal(isHiddenSujanProduct({ name: 'RANDOM FB PAGE CREATED YOURSELF', platform: { name: 'USA FACEBOOK' } }), false)
+})
+
 test('Log products are grouped under their actual platforms', () => {
   assert.equal(logCategory('Logs', 'LMS Socials', 'USA Spotify account'), 'Spotify')
   assert.equal(logCategory('Other', 'MICROSOFT TEXTPLUS (Read Rules)'), 'TextPlus')
   assert.equal(logCategory('Other', 'EXPRESS FOR PHONE'), 'VPN')
   assert.equal(logCategory('Other', 'CLONE TIKTIOK US | Full 2FA'), 'TikTok')
+  assert.equal(logCategory('INSTAGRAM', 'CLONE INSTAGRAM | FULL 2FA'), 'Instagram')
   assert.equal(logCategory('Other', 'USA Apple ID with email access'), 'Apple ID')
   assert.equal(logCategory('Other', 'Grok AI account with 2FA'), 'Grok AI')
   assert.equal(logCategory('Other', 'ChatGPT account with email access'), 'ChatGPT')
@@ -54,7 +63,7 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['201231', '202351', '202962', '203011', '201182', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['201231', '202351', '202962', '203011', '201182', '201082', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code), requestedCodes)
   assert.ok(definitions.every((item) => item.useLiveDetails === true))

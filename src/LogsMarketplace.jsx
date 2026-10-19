@@ -233,7 +233,7 @@ export default function LogsMarketplace() {
         </div>
       </section>
       <header className='logs-head logs-directory-head' id='logs-catalog'>
-        <div><span>BUY LOGS</span><h2>{browsingProducts ? categoryLabel(category) : 'Choose a service'}</h2><p>{browsingProducts ? 'Choose a listing and receive your details securely after purchase.' : 'Select a category to view its available products.'}</p></div>
+        <div><span>BUY LOGS</span><h2>{browsingProducts ? categoryLabel(category) : 'Choose a service'}</h2><p>{browsingProducts ? 'Choose a listing and receive your details securely after purchase.' : 'Select a category to view its products and current availability.'}</p></div>
         <div className='voucher-trust'><BadgeCheck /><span><strong>Secure delivery</strong><small>Codes stay private until purchase</small></span></div>
       </header>
 
@@ -248,7 +248,7 @@ export default function LogsMarketplace() {
           const count = item === 'All' ? products.length : products.filter((product) => product.category === item).length
           return <button key={item} type='button' onClick={() => { setCategory(item); setDirectoryOpen(false) }}>
             <i className={`log-category-icon log-category-${item.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{item === 'All' ? <LayoutGrid /> : <SocialIcon category={item} />}</i>
-            <span><strong>{categoryLabel(item)}</strong><small>{count} available product{count === 1 ? '' : 's'}</small></span>
+            <span><strong>{categoryLabel(item)}</strong><small>{count} product{count === 1 ? '' : 's'}</small></span>
             <b><ArrowRight /></b>
           </button>
         })}
