@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, bulkMarkedUpPriceKobo, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory } from '../lib/log-providers.js'
+import { applyLogPriceRules, bulkMarkedUpPriceKobo, bulkPricingCatalogItems, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
@@ -135,6 +135,28 @@ test('New live BulkAcc products use their converted naira selling prices', () =>
     '203423': 128960,
     '201733': 10593440,
   })
+})
+
+test('Admin pricing uses live BulkAcc names and prices instead of zero-value placeholders', () => {
+  const services = bulkPricingCatalogItems([
+    {
+      _id: 'bulkacc:204743',
+      title: 'Onlyfans account with 2FA and Email Access. Age < 1 Month',
+      category: 'OnlyFans',
+      basePriceKobo: 114400,
+      priceKobo: 114400,
+    },
+  ], { pricesKobo: { 'bulkacc:204743': 175000 } })
+  const service = services.find((item) => item._id === 'bulkacc:204743')
+
+  assert.deepEqual(service, {
+    _id: 'bulkacc:204743',
+    source: 'bulkacc',
+    title: 'Onlyfans account with 2FA and Email Access. Age < 1 Month',
+    category: 'OnlyFans',
+    priceKobo: 175000,
+  })
+  assert.equal(services.some((item) => item.title === 'Product 201020' || item.priceKobo === 0), false)
 })
 
 test('Other clone-labelled products cost twice their calculated price', () => {

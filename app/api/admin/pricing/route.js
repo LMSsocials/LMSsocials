@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '../../../../lib/admin'
 import { getDatabase } from '../../../../lib/mongodb'
-import { BULKACC_LOG_PRODUCTS, sujanCatalog } from '../../../../lib/log-providers'
+import { bulkCatalog, bulkPricingCatalogItems, sujanCatalog } from '../../../../lib/log-providers'
 import { getSupplierPricing, supplierProductPriceKobo } from '../../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
@@ -15,15 +15,22 @@ const serviceSummary = (item) => ({
 })
 
 async function getSupplierServices(database, pricing) {
-  const bulkItems = BULKACC_LOG_PRODUCTS.map((item) => ({
-    _id: `bulkacc:${item.code}`,
-    source: 'bulkacc',
-    title: item.title,
-    category: item.category,
-    priceKobo: supplierProductPriceKobo(pricing, `bulkacc:${item.code}`, item.priceKobo),
-  }))
-  const cached = await database.collection('supplierCatalogCache').findOne({ source: 'sujan' })
-  let sujanItems = (cached?.items || []).map((item) => ({
+  const cacheDocuments = await database.collection('supplierCatalogCache')
+    .find({ source: { $in: ['bulkacc', 'sujan'] } })
+    .toArray()
+  const cacheBySource = new Map(cacheDocuments.map((document) => [document.source, document.items || []]))
+
+  let bulkLiveItems = cacheBySource.get('bulkacc') || []
+  if (!bulkLiveItems.length) {
+    try {
+      bulkLiveItems = await bulkCatalog(pricing)
+    } catch (error) {
+      console.error('[admin/pricing] BulkAcc catalog unavailable', { message: error.message })
+    }
+  }
+  const bulkItems = bulkPricingCatalogItems(bulkLiveItems, pricing)
+
+  let sujanItems = (cacheBySource.get('sujan') || []).map((item) => ({
     ...item,
     priceKobo: supplierProductPriceKobo(pricing, item._id, item.basePriceKobo ?? item.priceKobo),
   }))
