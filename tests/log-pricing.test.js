@@ -64,7 +64,7 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['200882', '200345', '200336', '203240', '203238', '200128', '203425', '203423', '201733', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['200882', '200345', '200336', '203240', '203238', '200128', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code).sort(), requestedCodes.sort())
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
@@ -113,6 +113,7 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   assert.ok(robloxProducts.filter((item) => !['203238', '203240'].includes(item.code)).every((item) => item.priceKobo === 400000))
   assert.equal(prices['Italy Snapchat with Gmail Access'], 6700000)
   assert.equal(prices['USA LinkedIn with Gmail Access and 2FA'], 10593440)
+  assert.equal(prices['Aged LinkedIn with 2FA - Registered with Gmail (2-3 Years)'], 5674240)
   assert.equal(prices['USA Spotify with Email Access'], 773760)
   assert.equal(prices['USA Yelp with Email Access'], 1000000)
 })
@@ -120,6 +121,7 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
 test('BulkAcc cost-based prices apply a 30 percent uplift after USD conversion', () => {
   assert.equal(bulkMarkedUpPriceKobo(50.93, 30, 1600), 10593440)
   assert.equal(bulkMarkedUpPriceKobo(3.72, 30, 1600), 773760)
+  assert.equal(bulkMarkedUpPriceKobo(27.28, 30, 1600), 5674240)
 })
 
 test('New live BulkAcc products use their converted naira selling prices', () => {

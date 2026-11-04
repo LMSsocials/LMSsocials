@@ -1,9 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { upload } from '@vercel/blob/client'
 import { Ban, CircleUserRound, ExternalLink, FileText, ImageIcon, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, Trash2, UploadCloud, UserCheck, Users, Wifi, Wrench } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
+const pricingSource = (source) => ({ bulkacc: 'BulkAcc', sujan: 'Sujan Department', boosting: 'Boosting', number: 'Numbers' }[source] || source)
+const PRICING_SECTIONS = [
+  { id: 'logs', label: 'Logs', sources: ['bulkacc', 'sujan'] },
+  { id: 'number', label: 'Numbers', sources: ['number'] },
+  { id: 'boosting', label: 'Boosting', sources: ['boosting'] },
+]
 const formatType = (file) => {
   const name = String(file?.name || '').toLowerCase()
   if (name.endsWith('.txt') && (!file?.type || file.type === 'text/plain')) return 'TXT'
@@ -17,7 +23,9 @@ export default function AdminPanel() {
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
   const [pricingServices, setPricingServices] = useState([])
+  const [pricingSection, setPricingSection] = useState('logs')
   const [pricingSearch, setPricingSearch] = useState('')
+  const [visiblePricingCount, setVisiblePricingCount] = useState(60)
   const [editingPricingId, setEditingPricingId] = useState('')
   const [editingPricingPrice, setEditingPricingPrice] = useState('')
   const [esimPlans, setEsimPlans] = useState([])
@@ -330,7 +338,18 @@ export default function AdminPanel() {
   }
 
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
-  const filteredPricingServices = pricingServices.filter((service) => `${service.title} ${service.category} ${service.source}`.toLowerCase().includes(pricingSearch.trim().toLowerCase()))
+  const deferredPricingSearch = useDeferredValue(pricingSearch)
+  const pricingSectionCounts = useMemo(() => Object.fromEntries(PRICING_SECTIONS.map((section) => [
+    section.id, pricingServices.reduce((total, service) => total + Number(section.sources.includes(service.source)), 0),
+  ])), [pricingServices])
+  const activePricingSection = PRICING_SECTIONS.find((section) => section.id === pricingSection) || PRICING_SECTIONS[0]
+  const sectionPricingServices = useMemo(() => pricingServices.filter((service) => activePricingSection.sources.includes(service.source)), [pricingServices, activePricingSection])
+  const filteredPricingServices = useMemo(() => {
+    const query = deferredPricingSearch.trim().toLowerCase()
+    if (!query) return sectionPricingServices
+    return sectionPricingServices.filter((service) => `${service.title} ${service.category} ${service.source}`.toLowerCase().includes(query))
+  }, [sectionPricingServices, deferredPricingSearch])
+  const visiblePricingServices = filteredPricingServices.slice(0, visiblePricingCount)
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
   return <section className='admin-panel'>
@@ -370,18 +389,24 @@ export default function AdminPanel() {
         ? <div className='admin-asset-price-editor admin-product-price-editor'><input aria-label={`New price for ${product.title}`} type='number' min='100' step='50' value={productPrice} onChange={(event) => setProductPrice(event.target.value)} /><button type='button' disabled={state === 'loading'} onClick={() => saveProductPrice(product._id)}>Save</button><button type='button' onClick={() => { setEditingProductId(''); setProductPrice('') }}>Cancel</button></div>
         : <div className='admin-product-actions'><button className='admin-asset-edit' type='button' onClick={() => editProductPrice(product)}>Edit price</button><button className={`admin-product-publish ${product.isPublished ? 'live' : 'draft'}`} type='button' disabled={state === 'loading'} onClick={() => toggleProductPublication(product)}>{product.isPublished ? 'Move to draft' : 'Publish'}</button></div>}<em className={product.isPublished ? 'live' : 'draft'}>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
     </> : tab === 'pricing' ? <section className='admin-pricing admin-service-pricing'>
-      <header><SlidersHorizontal /><div><small>EXACT SERVICE PRICING</small><h3>Edit each supplier service price</h3><p>Enter the exact amount customers should pay. Saved prices are used in both the catalog and checkout.</p></div></header>
-      <label className='admin-pricing-search'><Search /><input value={pricingSearch} onChange={(event) => setPricingSearch(event.target.value)} placeholder='Search services, categories, or suppliers' /></label>
+      <header><SlidersHorizontal /><div><small>EXACT SERVICE PRICING</small><h3>Edit account, number, and boosting prices</h3><p>Enter the exact amount customers should pay. Saved prices are used in both the catalog and checkout.</p></div></header>
+      <nav className='admin-pricing-sections' aria-label='Pricing sections'>
+        {PRICING_SECTIONS.map((section) => <button type='button' className={pricingSection === section.id ? 'active' : ''} key={section.id} onClick={() => { setPricingSection(section.id); setPricingSearch(''); setVisiblePricingCount(60); setEditingPricingId(''); setEditingPricingPrice('') }}>
+          <span>{section.label}</span><strong>{pricingSectionCounts[section.id] || 0}</strong>
+        </button>)}
+      </nav>
+      <label className='admin-pricing-search'><Search /><input value={pricingSearch} onChange={(event) => { setPricingSearch(event.target.value); setVisiblePricingCount(60) }} placeholder={`Search ${activePricingSection.label.toLowerCase()} services`} /></label>
       <div className='admin-service-price-form'>
         <div className='admin-service-price-list'>
-          {filteredPricingServices.map((service) => <article key={service.id} className='admin-service-price-row'>
-            <span><strong>{service.title}</strong><small>{service.category} · {service.source === 'bulkacc' ? 'BulkAcc' : 'Sujan Department'}</small></span>
+          {visiblePricingServices.map((service) => <article key={service.id} className='admin-service-price-row'>
+            <span><strong>{service.title}</strong><small>{service.category} · {pricingSource(service.source)}</small></span>
             {editingPricingId === service.id
               ? <div className='admin-service-price-editor'><strong>₦</strong><input autoFocus aria-label={`Price for ${service.title}`} type='number' min='100' max='10000000' step='50' value={editingPricingPrice} onChange={(event) => setEditingPricingPrice(event.target.value)} required /><button type='button' disabled={state === 'loading' || !editingPricingPrice} onClick={() => saveServicePrice(service.id)}>Save</button><button type='button' onClick={() => { setEditingPricingId(''); setEditingPricingPrice('') }}>Cancel</button></div>
               : <div className='admin-service-price-display'><strong>{money(service.priceKobo)}</strong><button type='button' onClick={() => editServicePrice(service)}>Edit price</button></div>}
           </article>)}
-          {!filteredPricingServices.length && <p className='admin-service-price-empty'>{pricingServices.length ? 'No services match your search.' : 'Supplier services are temporarily unavailable.'}</p>}
+          {!filteredPricingServices.length && <p className='admin-service-price-empty'>{sectionPricingServices.length ? 'No services match your search.' : `No ${activePricingSection.label.toLowerCase()} services are available right now.`}</p>}
         </div>
+        {visiblePricingServices.length < filteredPricingServices.length && <div className='admin-pricing-load-more'><span>Showing {visiblePricingServices.length} of {filteredPricingServices.length}</span><button type='button' onClick={() => setVisiblePricingCount((count) => count + 60)}>Load 60 more</button></div>}
       </div>
     </section> : tab === 'esim' ? <section className='admin-pricing esim-admin-pricing'>
       <header><Wifi /><div><small>eSIM PRICING</small><h3>Set plan prices</h3><p>Leave a price blank to keep that plan unavailable. Customers can only purchase plans with a saved price.</p></div></header>

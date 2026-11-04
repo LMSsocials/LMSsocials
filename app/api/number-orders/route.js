@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { getDatabase, getMongoClient } from '../../../lib/mongodb'
+import { getSupplierPricing } from '../../../lib/supplier-pricing.js'
 import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
 import { verifyNumberQuote, checkQuotedSupplier, reserveQuotedNumber } from '../../../lib/number-provider.js'
 import { publicNumberOrder, syncNumberOrder } from '../../../lib/number-order-lifecycle.js'
@@ -81,7 +82,7 @@ export async function POST(request) {
   })
 
   let quote
-  try { quote = await verifyNumberQuote(body.quoteToken, userId) }
+  try { quote = await verifyNumberQuote(body.quoteToken, userId, await getSupplierPricing(database)) }
   catch { return json({ message: 'Please refresh the price before purchasing.', retrySafe: true, refreshQuote: true }, 409) }
   try { await checkQuotedSupplier(quote) }
   catch { return json({ message: 'This supplier’s price or availability changed. Please review a fresh price.', retrySafe: true, refreshQuote: true }, 409) }

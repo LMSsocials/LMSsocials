@@ -10,6 +10,7 @@ import {
   placeBoostingOrder,
 } from '../../../lib/boosting-provider'
 import { boostingOrderPriceKobo } from '../../../lib/boosting-pricing'
+import { getSupplierPricing } from '../../../lib/supplier-pricing.js'
 import { validateBoostingInput } from '../../../lib/boosting-validation.js'
 
 export const runtime = 'nodejs'
@@ -97,8 +98,9 @@ export async function POST(request) {
     })
   }
 
+  const pricing = await getSupplierPricing(database)
   let service
-  try { service = await getCurrentBoostingService(serviceId) }
+  try { service = await getCurrentBoostingService(serviceId, pricing) }
   catch (error) {
     const message = error instanceof BoostingProviderError && error.definitive ? error.message : 'Unable to verify the live service price'
     return NextResponse.json({ message, retrySafe: true }, { status: error instanceof BoostingProviderError && error.definitive ? 409 : 502 })
@@ -109,7 +111,7 @@ export async function POST(request) {
   }
 
   let priceKobo
-  try { priceKobo = boostingOrderPriceKobo(service.providerRateUsd, quantity) }
+  try { priceKobo = boostingOrderPriceKobo(service.providerRateUsd, quantity, service.pricePerThousand) }
   catch { return NextResponse.json({ message: 'Unable to calculate the live order price', retrySafe: true }, { status: 409 }) }
 
   const client = await getMongoClient()

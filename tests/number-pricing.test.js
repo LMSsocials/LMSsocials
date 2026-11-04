@@ -50,6 +50,12 @@ test('eSIM-labelled supplier options start around NGN 10,000', () => {
   assert.equal(numberSellingPriceKobo(1, '2', { countryId: '43', serviceCode: 'wa' }), 1500000)
 })
 
+test('Admin number overrides replace the calculated price for one exact tier', () => {
+  const pricing = { pricesKobo: { 'number:187:wa:2': 1250000 } }
+  assert.equal(numberSellingPriceKobo(1, '2', { countryId: '187', serviceCode: 'wa' }, pricing), 1250000)
+  assert.equal(numberSellingPriceKobo(1, '3', { countryId: '187', serviceCode: 'wa' }, pricing), 1500000)
+})
+
 test('premium foreign countries enforce regional minimum prices', () => {
   assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '56' }), 1200000)
   assert.equal(applyNumberPriceFloorsKobo(100000, '1', { countryId: '1001' }), 1500000)

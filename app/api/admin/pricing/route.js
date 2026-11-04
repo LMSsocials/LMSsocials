@@ -3,6 +3,8 @@ import { getAdminSession } from '../../../../lib/admin'
 import { getDatabase } from '../../../../lib/mongodb'
 import { bulkCatalog, bulkPricingCatalogItems, sujanCatalog } from '../../../../lib/log-providers'
 import { getSupplierPricing, supplierProductPriceKobo } from '../../../../lib/supplier-pricing'
+import { getBoostingServices } from '../../../../lib/boosting-provider.js'
+import { loadNumberOffers } from '../../../../legacy-api/number-services.js'
 
 export const runtime = 'nodejs'
 
@@ -14,7 +16,7 @@ const serviceSummary = (item) => ({
   priceKobo: item.priceKobo,
 })
 
-async function getSupplierServices(database, pricing) {
+async function getLogServices(database, pricing) {
   const cacheDocuments = await database.collection('supplierCatalogCache')
     .find({ source: { $in: ['bulkacc', 'sujan'] } })
     .toArray()
@@ -46,11 +48,34 @@ async function getSupplierServices(database, pricing) {
     .sort((left, right) => left.category.localeCompare(right.category) || left.title.localeCompare(right.title))
 }
 
+async function getEditableServices(database, pricing) {
+  const groups = await Promise.allSettled([
+    getLogServices(database, pricing),
+    process.env.BOOSTING_API_KEY ? getBoostingServices(pricing).then((items) => items.map((item) => ({
+      id: `boosting:${item.id}`, source: 'boosting', title: item.name,
+      category: `${item.platform} / ${item.category}`, priceKobo: Math.round(item.pricePerThousand * 100),
+    }))) : [],
+    process.env.SMSBOWER_API_KEY ? loadNumberOffers(process.env.SMSBOWER_API_KEY, pricing).then((offers) => offers.flatMap((offer) => (
+      ['1', '2', '3'].map((serverId) => ({
+        id: `number:${offer.countryId}:${offer.serviceCode}:${serverId}`,
+        source: 'number', title: `${offer.country} — ${offer.service} — ${{ '1': 'Recommended', '2': 'Silver eSIM', '3': 'Gold eSIM' }[serverId]}`,
+        category: 'Numbers', priceKobo: Math.round(Number(offer.prices[serverId]) * 100),
+      }))
+    ))) : [],
+  ])
+  const labels = ['account services', 'boosting services', 'number services']
+  groups.forEach((group, index) => {
+    if (group.status === 'rejected') console.error(`[admin/pricing] ${labels[index]} unavailable`, { message: group.reason?.message })
+  })
+  return groups.flatMap((group) => group.status === 'fulfilled' ? group.value : [])
+    .sort((left, right) => left.source.localeCompare(right.source) || left.category.localeCompare(right.category) || left.title.localeCompare(right.title))
+}
+
 export async function GET() {
   if (!await getAdminSession()) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
-  return NextResponse.json({ services: await getSupplierServices(database, pricing) })
+  return NextResponse.json({ services: await getEditableServices(database, pricing) })
 }
 
 export async function PATCH(request) {
@@ -65,7 +90,7 @@ export async function PATCH(request) {
   const currentPricing = await getSupplierPricing(database)
   const pricesKobo = body.mode === 'merge' ? { ...currentPricing.pricesKobo } : {}
   for (const [reference, value] of Object.entries(submitted)) {
-    if (!/^(bulkacc|sujan):[a-zA-Z0-9_-]{1,80}$/.test(reference)) {
+    if (!/^(bulkacc|sujan|boosting|number):[a-zA-Z0-9:_-]{1,120}$/.test(reference)) {
       return NextResponse.json({ message: 'A service reference is invalid' }, { status: 400 })
     }
     if (value === '' || value == null) continue
@@ -83,5 +108,5 @@ export async function PATCH(request) {
     { upsert: true },
   )
   const pricing = await getSupplierPricing(database)
-  return NextResponse.json({ services: await getSupplierServices(database, pricing) })
+  return NextResponse.json({ services: await getEditableServices(database, pricing) })
 }

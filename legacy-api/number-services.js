@@ -1,5 +1,7 @@
 import { koboToNaira, numberSellingPriceKobo } from '../lib/number-pricing.js'
 import { isNumberCountryEnabled } from '../lib/number-catalog.js'
+import { getDatabase } from '../lib/mongodb.js'
+import { getSupplierPricing } from '../lib/supplier-pricing.js'
 
 const PROVIDER_URL = 'https://smsbower.page/stubs/handler_api.php'
 const CACHE_TTL = 2 * 60 * 1000
@@ -14,10 +16,13 @@ async function providerRequest(apiKey, action) {
   try { return JSON.parse(text) } catch { throw new Error('Unexpected provider response') }
 }
 
-async function loadNumberOffers(apiKey) {
+export async function loadNumberOffers(apiKey, pricing = {}) {
   const cache = globalThis.__lmsNumberServicesCache || (globalThis.__lmsNumberServicesCache = {})
-  if (cache.offers?.length && Date.now() - cache.updatedAt < CACHE_TTL) return cache.offers
-  if (cache.refresh) return cache.refresh
+  const pricingVersion = JSON.stringify(pricing.pricesKobo || {})
+  if (cache.offers?.length && cache.pricingVersion === pricingVersion && Date.now() - cache.updatedAt < CACHE_TTL) return cache.offers
+  if (cache.refresh && cache.pricingVersion === pricingVersion) return cache.refresh
+
+  cache.pricingVersion = pricingVersion
 
   cache.refresh = Promise.all([
     providerRequest(apiKey, 'getCountries'), providerRequest(apiKey, 'getServicesList'), providerRequest(apiKey, 'getPrices'),
@@ -32,7 +37,7 @@ async function loadNumberOffers(apiKey) {
       const price = Number(details?.cost); const available = Number(details?.count)
       if (!Number.isFinite(price) || !Number.isFinite(available) || available <= 0) return
       const offer = { countryId, serviceCode }
-      offers.push({ id: `${countryId}:${serviceCode}`, countryId, country: countryNames.get(countryId) || `Country ${countryId}`, serviceCode, service: serviceNames.get(serviceCode) || serviceCode.toUpperCase(), price: koboToNaira(numberSellingPriceKobo(price, '1', offer)), prices: { '1': koboToNaira(numberSellingPriceKobo(price, '1', offer)), '2': koboToNaira(numberSellingPriceKobo(price, '2', offer)), '3': koboToNaira(numberSellingPriceKobo(price, '3', offer)) }, available })
+      offers.push({ id: `${countryId}:${serviceCode}`, countryId, country: countryNames.get(countryId) || `Country ${countryId}`, serviceCode, service: serviceNames.get(serviceCode) || serviceCode.toUpperCase(), price: koboToNaira(numberSellingPriceKobo(price, '1', offer, pricing)), prices: { '1': koboToNaira(numberSellingPriceKobo(price, '1', offer, pricing)), '2': koboToNaira(numberSellingPriceKobo(price, '2', offer, pricing)), '3': koboToNaira(numberSellingPriceKobo(price, '3', offer, pricing)) }, available })
     }))
     offers.sort((a, b) => a.price - b.price || b.available - a.available)
     cache.offers = offers
@@ -50,7 +55,8 @@ export default async function handler(request, response) {
   const apiKey = process.env.SMSBOWER_API_KEY
   if (!apiKey) return response.status(503).json({ message: 'Number integration is not configured' })
   try {
-    const offers = await loadNumberOffers(apiKey)
+    const pricing = await getSupplierPricing(await getDatabase())
+    const offers = await loadNumberOffers(apiKey, pricing)
     response.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
     return response.status(200).json({ offers, currency: 'NGN' })
   } catch (error) {

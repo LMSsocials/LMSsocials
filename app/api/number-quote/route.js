@@ -4,6 +4,7 @@ import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
 import { getDatabase } from '../../../lib/mongodb'
 import { createNumberQuote } from '../../../lib/number-provider.js'
 import { isNumberCountryEnabled } from '../../../lib/number-catalog.js'
+import { getSupplierPricing } from '../../../lib/supplier-pricing.js'
 
 export const runtime = 'nodejs'
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
@@ -21,7 +22,8 @@ export async function GET(request) {
   const user = await database.collection('users').findOne({ _id: new ObjectId(session.sub) }, { projection: { isBanned: 1 } })
   if (!user || user.isBanned) return json({ message: 'Account unavailable' }, 403)
   try {
-    return json({ quote: await createNumberQuote({ userId: session.sub, countryId, serviceCode, serverId }) })
+    const pricing = await getSupplierPricing(database)
+    return json({ quote: await createNumberQuote({ userId: session.sub, countryId, serviceCode, serverId }, pricing) })
   } catch (error) {
     return json({ message: error.code === 'NO_GOLD_NUMBERS' ? 'No Gold suppliers are available for this selection. Try another country or Recommended.'
       : error.code === 'NO_NUMBERS' ? 'This selection is sold out. Please choose another country or service.' : 'We could not verify a price right now. Please try again.' }, 503)

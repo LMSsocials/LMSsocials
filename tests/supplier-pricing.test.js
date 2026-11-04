@@ -32,3 +32,14 @@ test('Pricing cache version changes when an exact service price changes', () => 
   const second = { ...first, pricesKobo: { 'sujan:42': 200000 } }
   assert.notEqual(supplierPricingVersion(first), supplierPricingVersion(second))
 })
+
+test('Exact overrides support boosting services and each number tier', () => {
+  const pricing = normalizeSupplierPricing({ pricesKobo: {
+    'boosting:1234': 225000,
+    'number:187:wa:1': 350000,
+    'number:187:wa:3': 1500000,
+  } })
+  assert.equal(supplierProductPriceKobo(pricing, 'boosting:1234', 100000), 225000)
+  assert.equal(supplierProductPriceKobo(pricing, 'number:187:wa:1', 100000), 350000)
+  assert.equal(supplierProductPriceKobo(pricing, 'number:187:wa:2', 1000000), 1000000)
+})
