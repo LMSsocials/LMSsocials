@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { ArrowLeft, ArrowRight, BadgeCheck, Copy, CircleUserRound, LayoutGrid, LoaderCircle, Minus, PackageOpen, Plus, Search, Send, ShoppingBag, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowUp, BadgeCheck, Copy, CircleUserRound, LayoutGrid, LoaderCircle, Minus, PackageOpen, Plus, Search, Send, ShoppingBag, X } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 import logoImage from '../public/assets/lms-logo-clean.png'
 import editorialRed from '../public/assets/logs-editorial-red-v2.png'
@@ -67,6 +67,7 @@ export default function LogsMarketplace() {
   const [directoryOpen, setDirectoryOpen] = useState(true)
   const [activeSlide, setActiveSlide] = useState(0)
   const [carouselPaused, setCarouselPaused] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
   const checkoutCloseRef = useRef(null)
   const checkoutReturnFocusRef = useRef(null)
 
@@ -88,6 +89,13 @@ export default function LogsMarketplace() {
   }
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    const updateScrollTopVisibility = () => setShowScrollTop(window.scrollY > 520)
+    updateScrollTopVisibility()
+    window.addEventListener('scroll', updateScrollTopVisibility, { passive: true })
+    return () => window.removeEventListener('scroll', updateScrollTopVisibility)
+  }, [])
 
   useEffect(() => {
     if (carouselPaused) return undefined
@@ -314,6 +322,7 @@ export default function LogsMarketplace() {
           <label><span>{order.status === 'processing' ? 'DELIVERY STATUS' : 'YOUR ACCESS CODE'}</span><strong>{order.code || (order.status === 'processing' ? 'Processing — refresh shortly' : 'Contact support')}</strong><button onClick={() => copyCode(order.code)} disabled={!order.code} aria-label='Copy access code'><Copy /></button></label>
         </article>)}</div> : <div className='logs-empty'><ShoppingBag /><strong>No log orders yet</strong><span>Your purchased codes will appear here.</span></div>}
       </section>
+      {showScrollTop && <button className='logs-scroll-top' type='button' aria-label='Back to top' title='Back to top' onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><ArrowUp /></button>}
     </section>
   )
 }
