@@ -55,6 +55,7 @@ test('Log products are grouped under their actual platforms', () => {
   assert.equal(logCategory('Other', 'ChatGPT account with email access'), 'ChatGPT')
   assert.equal(logCategory('Other', 'USA SoundCloud account'), 'SoundCloud')
   assert.equal(logCategory('Other', 'USA Roblox account'), 'Roblox')
+  assert.equal(logCategory('Other', 'Quora account with email access'), 'Quora')
   assert.equal(logCategory('Other', 'Aged USA Twitch account'), 'Twitch')
   assert.equal(logCategory('Other', 'USA Yelp account with email access'), 'Yelp')
   assert.equal(logCategory('Other', 'USA LinkedIn with Gmail access'), 'LinkedIn')
@@ -63,9 +64,9 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['200882', '200345', '200336', '203240', '203238', '200128', '203425', '203423', '201733', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
-  assert.deepEqual(definitions.map((item) => item.code), requestedCodes)
+  assert.deepEqual(definitions.map((item) => item.code).sort(), requestedCodes.sort())
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
 })
 
@@ -107,9 +108,9 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   const chatGptProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'ChatGPT')
   const robloxProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'Roblox')
   assert.equal(chatGptProducts.length, 8)
-  assert.equal(robloxProducts.length, 8)
+  assert.equal(robloxProducts.length, 9)
   assert.ok(chatGptProducts.every((item) => item.priceKobo === 1000000))
-  assert.ok(robloxProducts.every((item) => item.priceKobo === 400000))
+  assert.ok(robloxProducts.filter((item) => !['203238', '203240'].includes(item.code)).every((item) => item.priceKobo === 400000))
   assert.equal(prices['Italy Snapchat with Gmail Access'], 6700000)
   assert.equal(prices['USA LinkedIn with Gmail Access and 2FA'], 10593440)
   assert.equal(prices['USA Spotify with Email Access'], 773760)
@@ -119,6 +120,21 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
 test('BulkAcc cost-based prices apply a 30 percent uplift after USD conversion', () => {
   assert.equal(bulkMarkedUpPriceKobo(50.93, 30, 1600), 10593440)
   assert.equal(bulkMarkedUpPriceKobo(3.72, 30, 1600), 773760)
+})
+
+test('New live BulkAcc products use their converted naira selling prices', () => {
+  const prices = Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.code, item.priceKobo]))
+  assert.deepEqual(Object.fromEntries(['200882', '200345', '200336', '203240', '203238', '200128', '203425', '203423', '201733'].map((code) => [code, prices[code]])), {
+    '200882': 482560,
+    '200345': 723840,
+    '200336': 832000,
+    '203240': 195520,
+    '203238': 168480,
+    '200128': 380640,
+    '203425': 141440,
+    '203423': 128960,
+    '201733': 10593440,
+  })
 })
 
 test('Other clone-labelled products cost twice their calculated price', () => {

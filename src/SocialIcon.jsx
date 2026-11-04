@@ -1,24 +1,25 @@
-import { CircleUserRound, Gamepad2, LayoutGrid, Mail, MessageCircle, Music2, Network, PackageOpen, Phone, Pin, Send } from 'lucide-react'
+import { CircleUserRound, Gamepad2, LayoutGrid, Linkedin, Mail, MessageCircle, Music2, Network, PackageOpen, Phone, Pin, Send } from 'lucide-react'
 
 const brandLogos = {
   Facebook: ['facebook', '1877F2'], Instagram: ['instagram', 'E4405F'], TikTok: ['tiktok', '000000'], Snapchat: ['snapchat', 'FFFC00'],
   TrustPilot: ['trustpilot', '00B67A'], Reddit: ['reddit', 'FF4500'], Gmail: ['gmail', 'EA4335'], YouTube: ['youtube', 'FF0000'],
-  'X / Twitter': ['x', '000000'], LinkedIn: ['linkedin', '0A66C2'], GitHub: ['github', '181717'], Discord: ['discord', '5865F2'],
+  'X / Twitter': ['x', '000000'], GitHub: ['github', '181717'], Discord: ['discord', '5865F2'],
   Pinterest: ['pinterest', 'BD081C'], Telegram: ['telegram', '26A5E4'], WhatsApp: ['whatsapp', '25D366'],
   Spotify: ['spotify', '1ED760'],
   VPN: ['openvpn', 'EA7E20'],
   'Apple ID': ['apple', '000000'],
   SoundCloud: ['soundcloud', 'FF5500'], Roblox: ['roblox', '000000'], Twitch: ['twitch', '9146FF'],
-  Yelp: ['yelp', 'D32323'],
+  Yelp: ['yelp', 'D32323'], Quora: ['quora', 'B92B27'],
   OnlyFans: ['onlyfans', '00AFF0'],
 }
 
 const textPlusLogo = 'https://play-lh.googleusercontent.com/a9kW-OSwOC0_au9tEr6GyVHM5WwugvvR-Yp9ftt9jxrnKr3JCWe9PHgpnzQ5_3RW1lVNhoVh2A8s7qxk7ax-9A=s0-br30'
+const nextPlusLogo = 'https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/fa/6e/62/fa6e6219-5554-4cb3-231a-caa9b43515a9/AppIcon-0-0-1x_U007emarketing-0-10-0-85-220.png/512x512bb.png'
 const chatGptLogo = 'https://cdn.oaistatic.com/assets/favicon-miwirzcw.ico'
 
 const fallbackIcons = {
   'Google Voice': Phone, Proxy: Network, 'LMS Socials': PackageOpen, All: LayoutGrid,
-  TikTok: Music2, Reddit: MessageCircle, Gmail: Mail, Email: Mail, 'X / Twitter': Send, Discord: Gamepad2, Pinterest: Pin,
+  TikTok: Music2, Reddit: MessageCircle, Gmail: Mail, Email: Mail, 'X / Twitter': Send, LinkedIn: Linkedin, Discord: Gamepad2, Pinterest: Pin,
 }
 
 function vpnProviderLogo(title) {
@@ -33,6 +34,7 @@ function vpnProviderLogo(title) {
 
 export default function SocialIcon({ category, title }) {
   if (category === 'TextPlus') return <img className='social-logo' src={textPlusLogo} alt='' aria-hidden='true' loading='lazy' />
+  if (category === 'NextPlus') return <img className='social-logo' src={nextPlusLogo} alt='' aria-hidden='true' loading='lazy' />
   if (category === 'Grok AI') return <img className='social-logo' src='/assets/grok-logomark.svg' alt='' aria-hidden='true' />
   if (category === 'ChatGPT') return <img className='social-logo' src={chatGptLogo} alt='' aria-hidden='true' loading='lazy' />
   const providerLogo = category === 'VPN' ? vpnProviderLogo(title) : null
