@@ -60,6 +60,8 @@ async function getEditableServices(database, pricing) {
         id: `number:${offer.countryId}:${offer.serviceCode}:${serverId}`,
         source: 'number', title: `${offer.country} — ${offer.service} — ${{ '1': 'Budget', '2': 'Silver', '3': 'Gold' }[serverId]}`,
         category: 'Numbers', priceKobo: Math.round(Number(offer.prices[serverId]) * 100),
+        countryId: offer.countryId, country: offer.country, serviceCode: offer.serviceCode, service: offer.service,
+        serverId, tier: { '1': 'Budget', '2': 'Silver', '3': 'Gold' }[serverId],
       }))
     ))) : [],
   ])
