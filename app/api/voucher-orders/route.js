@@ -20,14 +20,14 @@ export async function GET() {
   if (!userId) return NextResponse.json({ message: 'Authentication required' }, { status: 401 })
   const database = await getDatabase()
   const orderCollection = database.collection('voucherOrders')
-  let orders = await orderCollection.find({ userId, status: { $in: ['delivered', 'processing'] } }).sort({ createdAt: -1 }).limit(100).toArray()
+  let orders = await orderCollection.find({ userId, status: { $in: ['delivered', 'processing', 'supplier_reserved'] } }).sort({ createdAt: -1 }).limit(100).toArray()
   const pendingBulk = orders.filter((order) => order.status === 'processing' && order.source === 'bulkacc' && order.providerOrderId)
   await Promise.all(pendingBulk.map(async (order) => {
     const code = await retrieveBulkOrder(order.providerOrderId).catch(() => '')
     if (!code) return
     await orderCollection.updateOne({ _id: order._id, status: 'processing' }, { $set: { ...encryptVoucherCode(code), status: 'delivered', deliveredAt: new Date(), updatedAt: new Date() } })
   }))
-  if (pendingBulk.length) orders = await orderCollection.find({ userId, status: { $in: ['delivered', 'processing'] } }).sort({ createdAt: -1 }).limit(100).toArray()
+  if (pendingBulk.length) orders = await orderCollection.find({ userId, status: { $in: ['delivered', 'processing', 'supplier_reserved'] } }).sort({ createdAt: -1 }).limit(100).toArray()
   const inventoryIds = orders.flatMap((order) => order.inventoryItemIds?.length ? order.inventoryItemIds : [order.inventoryItemId]).filter(Boolean)
   const items = inventoryIds.length ? await database.collection('voucherInventory').find({ _id: { $in: inventoryIds }, purchasedBy: userId }).toArray() : []
   const itemMap = new Map(items.map((item) => [String(item._id), item]))
@@ -37,7 +37,7 @@ export async function GET() {
         .map((id) => itemMap.get(String(id))).filter(Boolean)
       return {
         _id: String(order._id), productId: String(order.productId), productTitle: order.productTitle,
-        brand: order.brand, quantity: order.quantity || deliveredItems.length || 1, priceKobo: order.priceKobo, createdAt: order.createdAt, status: order.status,
+        brand: order.brand, quantity: order.quantity || deliveredItems.length || 1, priceKobo: order.priceKobo, createdAt: order.createdAt, status: order.status === 'supplier_reserved' ? 'processing' : order.status,
         code: deliveredItems.length ? deliveredItems.map(decryptVoucherCode).join('\n') : order.encryptedCode ? decryptVoucherCode(order) : null,
       }
     }),

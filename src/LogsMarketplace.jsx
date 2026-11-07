@@ -53,7 +53,6 @@ function categoryLabel(item) {
 
 export default function LogsMarketplace() {
   const [products, setProducts] = useState([])
-  const [orders, setOrders] = useState([])
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [state, setState] = useState('loading')
@@ -74,13 +73,10 @@ export default function LogsMarketplace() {
   const load = async () => {
     setState('loading')
     try {
-      const [productsResponse, ordersResponse] = await Promise.all([fetch('/api/voucher-products'), fetch('/api/voucher-orders')])
+      const productsResponse = await fetch('/api/voucher-products')
       const productsPayload = await productsResponse.json()
-      const ordersPayload = await ordersResponse.json()
       if (!productsResponse.ok) throw new Error(productsPayload.message || 'Unable to load logs')
-      if (!ordersResponse.ok) throw new Error(ordersPayload.message || 'Unable to load orders')
       setProducts(productsPayload.products || [])
-      setOrders(ordersPayload.orders || [])
       setState('ready')
     } catch (error) {
       setMessage(error.message)
@@ -160,7 +156,6 @@ export default function LogsMarketplace() {
         if (!response.ok || cancelled) return
         const refreshedOrder = (payload.orders || []).find((order) => order._id === pendingOrderId)
         if (!refreshedOrder) return
-        setOrders(payload.orders)
         if (refreshedOrder.code) setCompletedOrder(refreshedOrder)
       } catch { /* The next automatic refresh will retry. */ }
     }
@@ -199,7 +194,6 @@ export default function LogsMarketplace() {
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.message || 'Purchase failed')
-      setOrders((current) => [payload.order, ...current])
       setProducts((current) => current.map((item) => item._id === product._id ? { ...item, stockCount: Math.max(0, item.stockCount - purchaseQuantity) } : item))
       setMessage('')
       setCompletedOrder(payload.order)
@@ -315,13 +309,6 @@ export default function LogsMarketplace() {
         </section>
       </div>, document.body)}
 
-      <section className='voucher-orders'>
-        <div className='dash-section-title'><div><span>ORDER HISTORY</span><h2>Your purchased logs</h2></div><small>{orders.length}</small></div>
-        {orders.length ? <div className='voucher-order-grid'>{orders.map((order) => <article key={order._id}>
-          <div><CircleUserRound /><span><strong>{order.productTitle}</strong><small>{order.brand} · Qty {order.quantity || 1} · {new Date(order.createdAt).toLocaleDateString()}</small></span></div>
-          <label><span>{order.status === 'processing' ? 'DELIVERY STATUS' : 'YOUR ACCESS CODE'}</span><strong>{order.code || (order.status === 'processing' ? 'Processing — refresh shortly' : 'Contact support')}</strong><button onClick={() => copyCode(order.code)} disabled={!order.code} aria-label='Copy access code'><Copy /></button></label>
-        </article>)}</div> : <div className='logs-empty'><ShoppingBag /><strong>No log orders yet</strong><span>Your purchased codes will appear here.</span></div>}
-      </section>
       {showScrollTop && <button className='logs-scroll-top' type='button' aria-label='Back to top' title='Back to top' onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><ArrowUp /></button>}
     </section>
   )

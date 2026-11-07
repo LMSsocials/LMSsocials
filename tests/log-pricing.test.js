@@ -64,7 +64,7 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['200882', '200345', '200336', '203240', '203238', '200128', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['200882', '200345', '200336', '203240', '203238', '200128', '200135', '200122', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code).sort(), requestedCodes.sort())
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
@@ -137,6 +137,14 @@ test('New live BulkAcc products use their converted naira selling prices', () =>
     '203423': 128960,
     '201733': 10593440,
   })
+})
+
+test('Requested Quora age products use verified BulkAcc codes and converted prices', () => {
+  const products = Object.fromEntries(BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'Quora').map((item) => [item.code, item]))
+  assert.equal(products['200135'].title, 'Quora with Email Access (6-7 Months)')
+  assert.equal(products['200135'].priceKobo, 476320)
+  assert.equal(products['200122'].title, 'Quora with Email Access (8-9 Months)')
+  assert.equal(products['200122'].priceKobo, 744640)
 })
 
 test('Admin pricing uses live BulkAcc names and prices instead of zero-value placeholders', () => {

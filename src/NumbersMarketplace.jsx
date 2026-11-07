@@ -5,7 +5,7 @@ import NumberInbox from './NumberInbox'
 const servers = [
   { id: '1', label: 'Budget', note: 'Lowest available cost' },
   { id: '2', label: 'Silver', note: 'Silver supplier inventory', esim: true },
-  { id: '3', label: 'Gold only', note: 'Gold suppliers exclusively', esim: true },
+  { id: '3', label: 'Gold', note: 'Gold suppliers exclusively', esim: true },
 ]
 const money = (value) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(value)
 

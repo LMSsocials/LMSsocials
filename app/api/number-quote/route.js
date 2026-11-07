@@ -25,7 +25,7 @@ export async function GET(request) {
     const pricing = await getSupplierPricing(database)
     return json({ quote: await createNumberQuote({ userId: session.sub, countryId, serviceCode, serverId }, pricing) })
   } catch (error) {
-    return json({ message: error.code === 'NO_GOLD_NUMBERS' ? 'No Gold suppliers are available for this selection. Try another country or Recommended.'
+    return json({ message: error.code === 'NO_GOLD_NUMBERS' ? 'No Gold suppliers are available for this selection. Try another country or Budget.'
       : error.code === 'NO_NUMBERS' ? 'This selection is sold out. Please choose another country or service.' : 'We could not verify a price right now. Please try again.' }, 503)
   }
 }

@@ -92,6 +92,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const [accountCopied, setAccountCopied] = useState(false)
   const [orders, setOrders] = useState([])
   const [ordersState, setOrdersState] = useState('idle')
+  const [copiedOrderId, setCopiedOrderId] = useState('')
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [offerSeconds, setOfferSeconds] = useState(5 * 60)
   const [seenNotificationKeys, setSeenNotificationKeys] = useState(() => {
@@ -114,14 +115,16 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const loadOrders = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setOrdersState('loading')
     try {
-      const [logs, files, numbers, boosts, esims, tools, pictures] = await Promise.all(orderSources.map(async ([url, selectItems]) => {
+      const results = await Promise.allSettled(orderSources.map(async ([url, selectItems]) => {
         const response = await fetch(url, { cache: 'no-store' })
         const payload = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
         return selectItems(payload)
       }))
+      if (results.every((result) => result.status === 'rejected')) throw new Error('Unable to load orders')
+      const [logs, files, numbers, boosts, esims, tools, pictures] = results.map((result) => result.status === 'fulfilled' ? result.value : [])
       const combined = [
-        ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: 'delivered', createdAt: order.createdAt })),
+        ...logs.map((order) => ({ id: order._id, type: 'Log', item: order.productTitle || order.brand || 'Log product', status: order.status || 'processing', createdAt: order.createdAt, code: order.code || '', quantity: order.quantity || 1, brand: order.brand || 'Marketplace' })),
         ...files.map((order) => ({ id: order._id, type: 'File', item: order.title || order.fileName || 'Download', status: order.status || 'delivered', createdAt: order.createdAt })),
         ...numbers.map((order) => ({ id: order._id, type: 'Number', item: order.phoneNumber || [order.countryCode || order.countryId, order.serviceCode].filter(Boolean).join(' · ') || 'Virtual number', status: order.status || 'processing', createdAt: order.createdAt })),
         ...boosts.map((order) => ({ id: order._id, type: 'Boosting', item: order.serviceName || 'Social media boost', status: order.status || 'pending', createdAt: order.createdAt })),
@@ -252,6 +255,13 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
     await navigator.clipboard.writeText(fundAccount.accountNumber)
     setAccountCopied(true)
     window.setTimeout(() => setAccountCopied(false), 1800)
+  }
+
+  async function copyOrderCode(order) {
+    if (!order.code) return
+    await navigator.clipboard.writeText(order.code)
+    setCopiedOrderId(order.id)
+    window.setTimeout(() => setCopiedOrderId((current) => current === order.id ? '' : current), 1800)
   }
 
   return (
@@ -397,7 +407,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             <p>{ordersState === 'error' ? 'We could not load your orders. Refresh to try again.' : orders.length ? 'Your latest purchases appear first.' : 'Completed and active orders will appear here.'}</p>
             <div className='activity-list'>
               {ordersState === 'loading' && <div className='activity-empty'><LoaderCircle className='spin' /><strong>Loading orders</strong><span>Checking your latest activity.</span></div>}
-              {ordersState === 'success' && orders.map((order) => <article key={`${order.type}-${order.id}`}><i className={deliveredStatuses.has(String(order.status).toLowerCase()) ? 'delivered' : 'pending'}>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><b>{order.type}: {order.item}</b><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}</small></span></article>)}
+              {ordersState === 'success' && orders.map((order) => <article className={order.code ? 'has-access-code' : ''} key={`${order.type}-${order.id}`}><i className={deliveredStatuses.has(String(order.status).toLowerCase()) ? 'delivered' : 'pending'}>{deliveredStatuses.has(String(order.status).toLowerCase()) ? <PackageCheck /> : <Clock3 />}</i><span><b>{order.type}: {order.item}</b><small>{orderStatus(order.status)} · {orderDate(order.createdAt)}{order.type === 'Log' ? ` · Qty ${order.quantity}` : ''}</small>{order.code && <div className='order-history-access'><em>YOUR ACCESS DETAILS</em><code>{order.code}</code><button type='button' onClick={() => copyOrderCode(order)}>{copiedOrderId === order.id ? <Check /> : <Copy />}{copiedOrderId === order.id ? 'Copied' : 'Copy'}</button></div>}</span></article>)}
               {ordersState === 'success' && !orders.length && <div className='activity-empty'><Clock3 /><strong>No orders yet</strong><span>Your purchases will appear here.</span></div>}
               {ordersState === 'error' && <div className='activity-empty'><Clock3 /><strong>Orders unavailable</strong><span>Please refresh the page to try again.</span></div>}
             </div>

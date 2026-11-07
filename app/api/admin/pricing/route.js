@@ -58,7 +58,7 @@ async function getEditableServices(database, pricing) {
     process.env.SMSBOWER_API_KEY ? loadNumberOffers(process.env.SMSBOWER_API_KEY, pricing).then((offers) => offers.flatMap((offer) => (
       ['1', '2', '3'].map((serverId) => ({
         id: `number:${offer.countryId}:${offer.serviceCode}:${serverId}`,
-        source: 'number', title: `${offer.country} — ${offer.service} — ${{ '1': 'Recommended', '2': 'Silver eSIM', '3': 'Gold eSIM' }[serverId]}`,
+        source: 'number', title: `${offer.country} — ${offer.service} — ${{ '1': 'Budget', '2': 'Silver', '3': 'Gold' }[serverId]}`,
         category: 'Numbers', priceKobo: Math.round(Number(offer.prices[serverId]) * 100),
       }))
     ))) : [],

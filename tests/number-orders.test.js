@@ -24,7 +24,14 @@ test('WhatsApp USA pins each server to its configured supplier product', () => {
   assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'tg', serverId: '2' }), undefined)
 })
 
-test('Recommended prefers a Gold supplier over cheaper unranked inventory', () => {
+test('WhatsApp Australia pins Budget, Silver, and Gold to verified supplier products', () => {
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '1' }), '3443')
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '2' }), '3514')
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '3' }), '3451')
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'tg', serverId: '1' }), undefined)
+})
+
+test('Silver prefers a Gold supplier over cheaper unranked inventory', () => {
   const prices = { 1: { price: 0.01, count: 100 }, 2: { price: 0.2, count: 10 }, 3: { price: 0.15, count: 8 } }
   const goldPartners = { 2: {}, 3: {} }
   assert.equal(chooseNumberSupplier({ prices, goldPartners, serverId: '2' }).providerId, '3')
