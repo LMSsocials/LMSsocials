@@ -64,7 +64,7 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['200882', '200345', '200336', '203240', '203238', '200128', '200135', '200122', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['201246', '201245', '201241', '201281', '201275', '201321', '201316', '201307', '201302', '200882', '200345', '200336', '203240', '203238', '200128', '200135', '200122', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code).sort(), requestedCodes.sort())
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
@@ -94,13 +94,17 @@ test('Snapchat products use the approved storefront prices', () => {
 
 test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {
   const prices = Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.title, item.priceKobo]))
-  assert.deepEqual(Object.fromEntries(Object.entries(prices).slice(0, 7)), {
+  assert.deepEqual(Object.fromEntries(Object.entries(prices).slice(0, 11)), {
     'Snapchat with Email Access': 600000,
-    'USA Apple ID with Email Access': 800000,
-    'Canada Apple ID with Email Access': 750000,
-    'UK Apple ID with Email Access': 500000,
-    'Germany Apple ID with Email Access': 800000,
-    'Australia Apple ID with Email Access': 700000,
+    'USA Apple ID Account with Email Access (1-2 Years)': null,
+    'USA Apple ID Account with Email Access (11-12 Months)': null,
+    'USA Apple ID Account with Email Access (7-8 Months)': null,
+    'Canada Apple ID Account with Email Access (1-2 Years)': null,
+    'Canada Apple ID Account with Email Access (7-8 Months)': null,
+    'Australia Apple ID Account with Email Access (1-2 Years)': null,
+    'Australia Apple ID Account with Email Access (7-8 Months)': null,
+    'Germany Apple ID Account with Email Access (1-2 Years)': null,
+    'Germany Apple ID Account with Email Access (7-8 Months)': null,
     'Grok AI with Email Access and 2FA': 1100000,
   })
   assert.equal(prices['USA SoundCloud with Email and 2FA'], 3000000)
