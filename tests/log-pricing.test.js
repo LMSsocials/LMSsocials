@@ -64,7 +64,7 @@ test('Log products are grouped under their actual platforms', () => {
 })
 
 test('Requested live BulkAcc products remain in the storefront allowlist', () => {
-  const requestedCodes = ['201246', '201245', '201241', '201281', '201275', '201321', '201316', '201307', '201302', '200882', '200345', '200336', '203240', '203238', '200128', '200135', '200122', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
+  const requestedCodes = ['201246', '201245', '201241', '201281', '201275', '201321', '201316', '201307', '201302', '200881', '200882', '200345', '200336', '203240', '203238', '200128', '200135', '200122', '203425', '203423', '201733', '200767', '201231', '202351', '202962', '203011', '201182', '201082', '200313', '200305', '204743', '201020', '202060', '201112']
   const definitions = BULKACC_LOG_PRODUCTS.filter((item) => requestedCodes.includes(item.code))
   assert.deepEqual(definitions.map((item) => item.code).sort(), requestedCodes.sort())
   assert.ok(definitions.every((item) => item.useLiveDetails === true))
@@ -125,6 +125,7 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   assert.equal(prices['UK Apple ID Account with Email Access (1-2 Years)'], null)
   assert.equal(prices['UK Apple ID Account with Email Access (2-3 Years)'], null)
   assert.equal(prices['UK Apple ID Account with Email Access (7-8 Months)'], null)
+  assert.equal(prices['UK Apple ID Account with Email Access (9-10 Months)'], null)
   const chatGptProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'ChatGPT')
   const robloxProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'Roblox')
   assert.equal(chatGptProducts.length, 8)
@@ -142,9 +143,17 @@ test('UK Apple ID products use verified live supplier codes', () => {
   const products = Object.fromEntries(BULKACC_LOG_PRODUCTS.filter((item) => item.title.startsWith('UK Apple ID')).map((item) => [item.code, item.title]))
   assert.deepEqual(products, {
     '201256': 'UK Apple ID Account with Email Access (7-8 Months)',
+    '201258': 'UK Apple ID Account with Email Access (9-10 Months)',
     '201261': 'UK Apple ID Account with Email Access (1-2 Years)',
     '201262': 'UK Apple ID Account with Email Access (2-3 Years)',
   })
+})
+
+test('Requested Twitter account uses the verified 1-2 year supplier code', () => {
+  const product = BULKACC_LOG_PRODUCTS.find((item) => item.code === '200881')
+  assert.equal(product.title, 'Twitter with 2FA, English Female Names (1-2 Years)')
+  assert.equal(product.category, 'X / Twitter')
+  assert.equal(product.priceKobo, null)
 })
 
 test('A partial BulkAcc refresh keeps previously fetched products visible as sold out', () => {
