@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { normalizeSupplierPricing, supplierProductPriceKobo, supplierPricingVersion } from '../lib/supplier-pricing.js'
+import { boostingProductPriceKobo, normalizeSupplierPricing, supplierProductPriceKobo, supplierPricingVersion } from '../lib/supplier-pricing.js'
 
 test('Missing supplier pricing falls back when MongoDB returns null', () => {
   assert.deepEqual(normalizeSupplierPricing(null, { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 }), {
     bulkaccMarkupPercent: 30,
     sujanMarkupPercent: 30,
+    boostingAdjustmentPercent: 0,
     pricesKobo: {},
   })
 })
@@ -14,6 +15,7 @@ test('Partial supplier pricing preserves valid values and fills missing values',
   assert.deepEqual(normalizeSupplierPricing({ bulkaccMarkupPercent: 45 }, { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 }), {
     bulkaccMarkupPercent: 45,
     sujanMarkupPercent: 30,
+    boostingAdjustmentPercent: 0,
     pricesKobo: {},
   })
 })
@@ -31,6 +33,18 @@ test('Pricing cache version changes when an exact service price changes', () => 
   const first = { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30, pricesKobo: { 'sujan:42': 100000 } }
   const second = { ...first, pricesKobo: { 'sujan:42': 200000 } }
   assert.notEqual(supplierPricingVersion(first), supplierPricingVersion(second))
+})
+
+test('Boosting percentage increases and decreases calculated prices while exact prices stay fixed', () => {
+  assert.equal(boostingProductPriceKobo({ boostingAdjustmentPercent: 25 }, 'boosting:123', 200000), 250000)
+  assert.equal(boostingProductPriceKobo({ boostingAdjustmentPercent: -20 }, 'boosting:123', 200000), 160000)
+  assert.equal(boostingProductPriceKobo({ boostingAdjustmentPercent: 25, pricesKobo: { 'boosting:123': 300000 } }, 'boosting:123', 200000), 300000)
+})
+
+test('Invalid boosting percentages fall back to zero', () => {
+  const pricing = normalizeSupplierPricing({ boostingAdjustmentPercent: -100 })
+  assert.equal(pricing.boostingAdjustmentPercent, 0)
+  assert.equal(boostingProductPriceKobo(pricing, 'boosting:123', 200000), 200000)
 })
 
 test('Exact overrides support boosting services and each number tier', () => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, bulkMarkedUpPriceKobo, bulkPricingCatalogItems, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory } from '../lib/log-providers.js'
+import { applyLogPriceRules, bulkMarkedUpPriceKobo, bulkPricingCatalogItems, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory, mergeBulkCatalogItems } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
@@ -94,7 +94,20 @@ test('Snapchat products use the approved storefront prices', () => {
 
 test('BulkAcc storefront allowlist uses the requested fixed naira prices', () => {
   const prices = Object.fromEntries(BULKACC_LOG_PRODUCTS.map((item) => [item.title, item.priceKobo]))
-  assert.deepEqual(Object.fromEntries(Object.entries(prices).slice(0, 11)), {
+  const coreProducts = [
+    'Snapchat with Email Access',
+    'USA Apple ID Account with Email Access (1-2 Years)',
+    'USA Apple ID Account with Email Access (11-12 Months)',
+    'USA Apple ID Account with Email Access (7-8 Months)',
+    'Canada Apple ID Account with Email Access (1-2 Years)',
+    'Canada Apple ID Account with Email Access (7-8 Months)',
+    'Australia Apple ID Account with Email Access (1-2 Years)',
+    'Australia Apple ID Account with Email Access (7-8 Months)',
+    'Germany Apple ID Account with Email Access (1-2 Years)',
+    'Germany Apple ID Account with Email Access (7-8 Months)',
+    'Grok AI with Email Access and 2FA',
+  ]
+  assert.deepEqual(Object.fromEntries(coreProducts.map((title) => [title, prices[title]])), {
     'Snapchat with Email Access': 600000,
     'USA Apple ID Account with Email Access (1-2 Years)': null,
     'USA Apple ID Account with Email Access (11-12 Months)': null,
@@ -109,6 +122,9 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   })
   assert.equal(prices['USA SoundCloud with Email and 2FA'], 3000000)
   assert.equal(prices['USA Twitch with Email Access'], 1700000)
+  assert.equal(prices['UK Apple ID Account with Email Access (1-2 Years)'], null)
+  assert.equal(prices['UK Apple ID Account with Email Access (2-3 Years)'], null)
+  assert.equal(prices['UK Apple ID Account with Email Access (7-8 Months)'], null)
   const chatGptProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'ChatGPT')
   const robloxProducts = BULKACC_LOG_PRODUCTS.filter((item) => item.category === 'Roblox')
   assert.equal(chatGptProducts.length, 8)
@@ -120,6 +136,27 @@ test('BulkAcc storefront allowlist uses the requested fixed naira prices', () =>
   assert.equal(prices['Aged LinkedIn with 2FA - Registered with Gmail (2-3 Years)'], 5674240)
   assert.equal(prices['USA Spotify with Email Access'], 773760)
   assert.equal(prices['USA Yelp with Email Access'], 1000000)
+})
+
+test('UK Apple ID products use verified live supplier codes', () => {
+  const products = Object.fromEntries(BULKACC_LOG_PRODUCTS.filter((item) => item.title.startsWith('UK Apple ID')).map((item) => [item.code, item.title]))
+  assert.deepEqual(products, {
+    '201256': 'UK Apple ID Account with Email Access (7-8 Months)',
+    '201261': 'UK Apple ID Account with Email Access (1-2 Years)',
+    '201262': 'UK Apple ID Account with Email Access (2-3 Years)',
+  })
+})
+
+test('A partial BulkAcc refresh keeps previously fetched products visible as sold out', () => {
+  const fresh = [{ _id: 'bulkacc:201261', title: 'UK Apple ID 1-2 Years', stockCount: 25, priceKobo: 100000 }]
+  const previous = [
+    { _id: 'bulkacc:201261', title: 'UK Apple ID 1-2 Years', stockCount: 10, priceKobo: 100000 },
+    { _id: 'bulkacc:201262', title: 'UK Apple ID 2-3 Years', stockCount: 8, priceKobo: 120000 },
+  ]
+  assert.deepEqual(mergeBulkCatalogItems(fresh, previous), [
+    fresh[0],
+    { ...previous[1], stockCount: 0 },
+  ])
 })
 
 test('BulkAcc cost-based prices apply a 30 percent uplift after USD conversion', () => {

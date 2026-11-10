@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminSession } from '../../../../lib/admin'
 import { getDatabase } from '../../../../lib/mongodb'
 import { bulkCatalog, bulkPricingCatalogItems, sujanCatalog } from '../../../../lib/log-providers'
-import { getSupplierPricing, supplierProductPriceKobo } from '../../../../lib/supplier-pricing'
+import { getSupplierPricing, normalizeBoostingAdjustmentPercent, supplierProductPriceKobo } from '../../../../lib/supplier-pricing'
 import { getBoostingServices } from '../../../../lib/boosting-provider.js'
 import { loadNumberOffers } from '../../../../legacy-api/number-services.js'
 
@@ -77,7 +77,7 @@ export async function GET() {
   if (!await getAdminSession()) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
-  return NextResponse.json({ services: await getEditableServices(database, pricing) })
+  return NextResponse.json({ services: await getEditableServices(database, pricing), boostingAdjustmentPercent: pricing.boostingAdjustmentPercent })
 }
 
 export async function PATCH(request) {
@@ -85,13 +85,16 @@ export async function PATCH(request) {
   if (!admin) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
   const body = await request.json().catch(() => ({}))
   const submitted = body.prices
-  if (!submitted || typeof submitted !== 'object' || Array.isArray(submitted) || Object.keys(submitted).length > 1000) {
+  const pricesWereSubmitted = Object.hasOwn(body, 'prices')
+  const hasPrices = submitted && typeof submitted === 'object' && !Array.isArray(submitted)
+  const hasBoostingAdjustment = Object.hasOwn(body, 'boostingAdjustmentPercent')
+  if ((pricesWereSubmitted && !hasPrices) || (!hasPrices && !hasBoostingAdjustment) || (hasPrices && Object.keys(submitted).length > 1000)) {
     return NextResponse.json({ message: 'Submit a valid service price list' }, { status: 400 })
   }
   const database = await getDatabase()
   const currentPricing = await getSupplierPricing(database)
   const pricesKobo = body.mode === 'merge' ? { ...currentPricing.pricesKobo } : {}
-  for (const [reference, value] of Object.entries(submitted)) {
+  for (const [reference, value] of Object.entries(hasPrices ? submitted : {})) {
     if (!/^(bulkacc|sujan|boosting|number):[a-zA-Z0-9:_-]{1,120}$/.test(reference)) {
       return NextResponse.json({ message: 'A service reference is invalid' }, { status: 400 })
     }
@@ -103,12 +106,19 @@ export async function PATCH(request) {
     }
     pricesKobo[reference] = priceKobo
   }
+  const boostingAdjustmentPercent = normalizeBoostingAdjustmentPercent(body.boostingAdjustmentPercent, NaN)
+  if (hasBoostingAdjustment && !Number.isFinite(boostingAdjustmentPercent)) {
+    return NextResponse.json({ message: 'Boosting adjustment must be between -90% and +1000%' }, { status: 400 })
+  }
   const now = new Date()
+  const changes = { updatedAt: now, updatedBy: admin.email }
+  if (hasPrices) changes.pricesKobo = pricesKobo
+  if (hasBoostingAdjustment) changes.boostingAdjustmentPercent = boostingAdjustmentPercent
   await database.collection('storeSettings').updateOne(
     { _id: 'supplier-pricing' },
-    { $set: { pricesKobo, updatedAt: now, updatedBy: admin.email } },
+    { $set: changes },
     { upsert: true },
   )
   const pricing = await getSupplierPricing(database)
-  return NextResponse.json({ services: await getEditableServices(database, pricing) })
+  return NextResponse.json({ services: await getEditableServices(database, pricing), boostingAdjustmentPercent: pricing.boostingAdjustmentPercent })
 }

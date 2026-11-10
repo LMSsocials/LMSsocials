@@ -1,6 +1,6 @@
 import { after, NextResponse } from 'next/server'
 import { getDatabase } from '../../../lib/mongodb'
-import { bulkCatalog, isHiddenLogProduct, LOG_PRICE_RULES_VERSION, logCategory, sujanCatalog } from '../../../lib/log-providers'
+import { bulkCatalog, isHiddenLogProduct, LOG_PRICE_RULES_VERSION, logCategory, mergeBulkCatalogItems, sujanCatalog } from '../../../lib/log-providers'
 import { getSupplierPricing, supplierPricingVersion, supplierProductPriceKobo } from '../../../lib/supplier-pricing'
 
 export const runtime = 'nodejs'
@@ -13,16 +13,17 @@ function currentPrices(items, pricing) {
   }))
 }
 
-async function refreshCatalog(database, source, loader, pricingVersion) {
+async function refreshCatalog(database, source, loader, pricingVersion, previousItems = []) {
   const promiseKey = `__lmsCatalogRefresh:${source}`
   if (!globalThis[promiseKey]) {
     globalThis[promiseKey] = loader().then(async (items) => {
+      const refreshedItems = source === 'bulkacc' ? mergeBulkCatalogItems(items, previousItems) : items
       await database.collection('supplierCatalogCache').updateOne(
         { source },
-        { $set: { source, items, pricingVersion, updatedAt: new Date() } },
+        { $set: { source, items: refreshedItems, pricingVersion, updatedAt: new Date() } },
         { upsert: true },
       )
-      return items
+      return refreshedItems
     }).catch((error) => {
       console.error(`[logs/catalog] ${source} supplier unavailable`, { message: error.message })
       return []
@@ -54,9 +55,9 @@ export async function GET() {
       && Date.now() - new Date(cached.updatedAt).getTime() < CATALOG_TTL
     if (hasCachedItems) {
       supplierItems[source] = currentPrices(cached.items, pricing)
-      if (!cacheIsFresh) after(() => refreshCatalog(database, source, loaders[source], pricingVersion))
+      if (!cacheIsFresh) after(() => refreshCatalog(database, source, loaders[source], pricingVersion, cached.items))
     } else {
-      supplierItems[source] = currentPrices(await refreshCatalog(database, source, loaders[source], pricingVersion), pricing)
+      supplierItems[source] = currentPrices(await refreshCatalog(database, source, loaders[source], pricingVersion, cached?.items), pricing)
     }
   }
 

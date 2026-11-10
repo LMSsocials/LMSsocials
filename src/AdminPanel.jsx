@@ -28,6 +28,7 @@ export default function AdminPanel() {
   const [visiblePricingCount, setVisiblePricingCount] = useState(60)
   const [editingPricingId, setEditingPricingId] = useState('')
   const [editingPricingPrice, setEditingPricingPrice] = useState('')
+  const [boostingAdjustmentPercent, setBoostingAdjustmentPercent] = useState('0')
   const [numberCountryId, setNumberCountryId] = useState('')
   const [numberServiceCode, setNumberServiceCode] = useState('')
   const [editingNumberPrices, setEditingNumberPrices] = useState(false)
@@ -62,6 +63,7 @@ export default function AdminPanel() {
     if (selectedTab === 'pricing') {
       const services = payload.services || []
       setPricingServices(services)
+      setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
     }
     if (selectedTab === 'esim') {
       const plans = payload.plans || []
@@ -248,6 +250,20 @@ export default function AdminPanel() {
     setPricingServices(services)
     setEditingPricingId(''); setEditingPricingPrice('')
     setState('success'); setMessage('Service price updated. The new catalog and checkout price is now active.')
+  }
+
+  const saveBoostingAdjustment = async (event) => {
+    event.preventDefault()
+    setState('loading'); setMessage('')
+    const response = await fetch('/api/admin/pricing', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ boostingAdjustmentPercent }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update boosting prices'); return }
+    setPricingServices(payload.services || [])
+    setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
+    setState('success'); setMessage('Boosting percentage saved. Updated catalog and checkout prices are now active.')
   }
 
   const editNumberTierPrices = (tiers) => {
@@ -437,7 +453,11 @@ export default function AdminPanel() {
           </article>)}</div>
           {editingNumberPrices && <footer><button type='button' className='secondary' onClick={() => { setEditingNumberPrices(false); setNumberTierPrices({}) }}>Cancel</button><button type='button' disabled={state === 'loading' || selectedNumberTiers.some((tier) => !numberTierPrices[tier.id])} onClick={saveNumberTierPrices}>{state === 'loading' ? <LoaderCircle className='spin' /> : <Pencil />} Save all tier prices</button></footer>}
         </section> : <div className='admin-number-empty'><SlidersHorizontal /><strong>{numberCountryId ? 'Choose a service' : 'Choose a country'}</strong><span>{numberCountryId ? 'Select a service to edit its Budget, Silver, and Gold prices.' : 'Start with a country to find its available number services.'}</span></div>}
-      </div> : <><label className='admin-pricing-search'><Search /><input value={pricingSearch} onChange={(event) => { setPricingSearch(event.target.value); setVisiblePricingCount(60) }} placeholder={`Search ${activePricingSection.label.toLowerCase()} services`} /></label>
+      </div> : <>{pricingSection === 'boosting' && <form className='admin-boosting-adjustment' onSubmit={saveBoostingAdjustment}>
+        <label><span>Adjust all calculated boosting prices</span><div><input aria-label='Boosting price percentage adjustment' type='number' min='-90' max='1000' step='0.1' value={boostingAdjustmentPercent} onChange={(event) => setBoostingAdjustmentPercent(event.target.value)} required /><strong>%</strong></div><small>Use a positive number to increase prices or a negative number to decrease them. Exact service prices stay fixed.</small></label>
+        <div className='admin-boosting-adjustment-preview'><small>CURRENT EFFECT</small><strong>{Number(boostingAdjustmentPercent) > 0 ? `+${boostingAdjustmentPercent}%` : `${boostingAdjustmentPercent || 0}%`}</strong></div>
+        <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Apply percentage</button>
+      </form>}<label className='admin-pricing-search'><Search /><input value={pricingSearch} onChange={(event) => { setPricingSearch(event.target.value); setVisiblePricingCount(60) }} placeholder={`Search ${activePricingSection.label.toLowerCase()} services`} /></label>
       <div className='admin-service-price-form'>
         <div className='admin-service-price-list'>
           {visiblePricingServices.map((service) => <article key={service.id} className='admin-service-price-row'>
