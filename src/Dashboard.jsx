@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
@@ -92,6 +92,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const [accountCopied, setAccountCopied] = useState(false)
   const [orders, setOrders] = useState([])
   const [ordersState, setOrdersState] = useState('idle')
+  const orderRequestRef = useRef(null)
   const [copiedOrderId, setCopiedOrderId] = useState('')
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [offerSeconds, setOfferSeconds] = useState(5 * 60)
@@ -113,14 +114,18 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   const firstName = name.trim().split(/\s+/)[0]
   const ActiveIcon = activeService ? serviceMeta[activeService].icon : TrendingUp
   const loadOrders = useCallback(async ({ quiet = false } = {}) => {
+    orderRequestRef.current?.abort()
+    const controller = new AbortController()
+    orderRequestRef.current = controller
     if (!quiet) setOrdersState('loading')
     try {
       const results = await Promise.allSettled(orderSources.map(async ([url, selectItems]) => {
-        const response = await fetch(url, { cache: 'no-store' })
+        const response = await fetch(url, { cache: 'no-store', signal: controller.signal })
         const payload = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(payload.message || 'Unable to load orders')
         return selectItems(payload)
       }))
+      if (controller.signal.aborted) return
       if (results.every((result) => result.status === 'rejected')) throw new Error('Unable to load orders')
       const [logs, files, numbers, boosts, esims, tools, pictures] = results.map((result) => result.status === 'fulfilled' ? result.value : [])
       const combined = [
@@ -135,7 +140,10 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
       setOrders(combined)
       setOrdersState('success')
     } catch {
+      if (controller.signal.aborted) return
       setOrdersState('error')
+    } finally {
+      if (orderRequestRef.current === controller) orderRequestRef.current = null
     }
   }, [])
 
@@ -205,13 +213,24 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   }, [loadOrders])
 
   useEffect(() => {
-    if ((activeService && !isOrdersPage) || isFundingPage) return undefined
-    loadOrders()
+    if ((activeService && !isOrdersPage) || isFundingPage) {
+      orderRequestRef.current?.abort()
+      return undefined
+    }
+    let cancelled = false
+    const beginInitialLoad = () => {
+      if (!cancelled && !orderRequestRef.current) loadOrders()
+    }
+    const initialTimer = isOrdersPage ? null : window.setTimeout(beginInitialLoad, 1200)
+    if (isOrdersPage) beginInitialLoad()
     const refresh = () => { if (!document.hidden) loadOrders({ quiet: true }) }
     const timer = window.setInterval(refresh, 120_000)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
     return () => {
+      cancelled = true
+      if (initialTimer) window.clearTimeout(initialTimer)
+      orderRequestRef.current?.abort()
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refresh)

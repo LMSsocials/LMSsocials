@@ -6,6 +6,7 @@ import { SESSION_COOKIE, verifySessionToken } from '../../../lib/auth'
 import { decryptVoucherCode, encryptVoucherCode } from '../../../lib/voucher-crypto'
 import { bulkProduct, placeBulkOrder, placeSujanOrder, retrieveBulkOrder, sujanProduct } from '../../../lib/log-providers'
 import { getSupplierPricing } from '../../../lib/supplier-pricing'
+import { invalidateVoucherCatalogResponse } from '../../../lib/voucher-catalog-cache'
 
 export const runtime = 'nodejs'
 
@@ -127,6 +128,7 @@ export async function POST(request) {
     await session.endSession()
   }
 
+  invalidateVoucherCatalogResponse()
   return NextResponse.json({
     order: {
       _id: String(orderId), productId: String(productId), productTitle: purchasedProduct.title,

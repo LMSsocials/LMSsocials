@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import { getAdminSession } from '../../../../lib/admin'
 import { getDatabase, getMongoClient } from '../../../../lib/mongodb'
 import { encryptVoucherCode, voucherCodeHash } from '../../../../lib/voucher-crypto'
+import { invalidateVoucherCatalogResponse } from '../../../../lib/voucher-catalog-cache'
 
 export const runtime = 'nodejs'
 
@@ -58,6 +59,7 @@ export async function POST(request) {
       createdBy: admin.email, createdAt: now, updatedAt: now,
     }
     const result = await database.collection('voucherProducts').insertOne(product)
+    invalidateVoucherCatalogResponse()
     return NextResponse.json({ product: { ...product, _id: String(result.insertedId) } }, { status: 201 })
   }
 
@@ -104,6 +106,7 @@ export async function POST(request) {
     } finally {
       await session.endSession()
     }
+    invalidateVoucherCatalogResponse()
     return NextResponse.json({ insertedCount: documents.length, skippedCount: codes.length - documents.length }, { status: 201 })
   }
 
@@ -136,5 +139,6 @@ export async function PATCH(request) {
     { returnDocument: 'after', projection: { title: 1, priceKobo: 1, isPublished: 1, updatedAt: 1 } },
   )
   if (!product) return NextResponse.json({ message: 'Product not found' }, { status: 404 })
+  invalidateVoucherCatalogResponse()
   return NextResponse.json({ product: { ...product, _id: String(product._id) } })
 }

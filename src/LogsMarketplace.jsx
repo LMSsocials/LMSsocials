@@ -217,7 +217,7 @@ export default function LogsMarketplace() {
               ? <a className='logs-carousel-cta telegram' href={slide.href} target='_blank' rel='noreferrer' tabIndex={index === activeSlide ? 0 : -1}><Send /> {slide.cta}</a>
               : <button className='logs-carousel-cta' type='button' tabIndex={index === activeSlide ? 0 : -1} onClick={() => document.getElementById('logs-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{slide.cta} <ArrowRight /></button>
             return <article key={slide.theme} className={`logs-carousel-slide logs-slide-${slide.theme} ${index === activeSlide ? 'active' : ''}`} aria-hidden={index !== activeSlide}>
-              <Image className='logs-carousel-art' src={slide.image} alt='' fill priority={index === 0} sizes='(max-width: 720px) 100vw, 1100px' />
+              <Image className='logs-carousel-art' src={slide.image} alt='' fill preload={index === 0} quality={60} sizes='(max-width: 720px) 100vw, 1100px' />
               <div className='logs-carousel-copy'>
                 <span className='logs-carousel-brand'><Image src={logoImage} alt='' sizes='54px' /> <b>SOCIALS</b></span>
                 <small>{slide.eyebrow}</small>

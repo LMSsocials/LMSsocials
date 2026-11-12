@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyLogPriceRules, bulkMarkedUpPriceKobo, bulkPricingCatalogItems, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory, mergeBulkCatalogItems } from '../lib/log-providers.js'
+import { applyLogPriceRules, bulkMarkedUpPriceKobo, bulkPricingCatalogItems, BULKACC_LOG_PRODUCTS, isHiddenLogProduct, isHiddenSujanProduct, logCategory, mergeBulkCatalogItems, mergeSupplierCatalogItems } from '../lib/log-providers.js'
 
 test('Fixed log prices match the storefront price list', () => {
   const cases = [
@@ -163,6 +163,18 @@ test('A partial BulkAcc refresh keeps previously fetched products visible as sol
     { _id: 'bulkacc:201262', title: 'UK Apple ID 2-3 Years', stockCount: 8, priceKobo: 120000 },
   ]
   assert.deepEqual(mergeBulkCatalogItems(fresh, previous), [
+    fresh[0],
+    { ...previous[1], stockCount: 0 },
+  ])
+})
+
+test('A partial Sujan refresh also keeps previously fetched products visible as sold out', () => {
+  const fresh = [{ _id: 'sujan:11', title: 'Current product', stockCount: 4, priceKobo: 100000 }]
+  const previous = [
+    { _id: 'sujan:11', title: 'Current product', stockCount: 8, priceKobo: 100000 },
+    { _id: 'sujan:12', title: 'Temporarily missing product', stockCount: 3, priceKobo: 120000 },
+  ]
+  assert.deepEqual(mergeSupplierCatalogItems('sujan', fresh, previous), [
     fresh[0],
     { ...previous[1], stockCount: 0 },
   ])

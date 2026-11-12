@@ -4,9 +4,9 @@ import { Ban, CircleUserRound, ExternalLink, FileText, ImageIcon, Layers3, Loade
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
-const pricingSource = (source) => ({ bulkacc: 'BulkAcc', sujan: 'Sujan Department', boosting: 'Boosting', number: 'Numbers' }[source] || source)
+const pricingSource = (source) => ({ managed: 'LMS inventory', bulkacc: 'BulkAcc', sujan: 'Sujan Department', boosting: 'Boosting', number: 'Numbers' }[source] || source)
 const PRICING_SECTIONS = [
-  { id: 'logs', label: 'Logs', sources: ['bulkacc', 'sujan'] },
+  { id: 'logs', label: 'Logs', sources: ['managed', 'bulkacc', 'sujan'] },
   { id: 'number', label: 'Numbers', sources: ['number'] },
   { id: 'boosting', label: 'Boosting', sources: ['boosting'] },
 ]
@@ -23,6 +23,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState([])
   const [users, setUsers] = useState([])
   const [pricingServices, setPricingServices] = useState([])
+  const [pricingLoadedSections, setPricingLoadedSections] = useState([])
   const [pricingSection, setPricingSection] = useState('logs')
   const [pricingSearch, setPricingSearch] = useState('')
   const [visiblePricingCount, setVisiblePricingCount] = useState(60)
@@ -51,7 +52,7 @@ export default function AdminPanel() {
 
   const loadData = useCallback(async (selectedTab = tab) => {
     const routes = {
-      vouchers: '/api/admin/vouchers', pricing: '/api/admin/pricing', esim: '/api/admin/esim',
+      vouchers: '/api/admin/vouchers', pricing: '/api/admin/pricing?section=logs', esim: '/api/admin/esim',
       tools: '/api/admin/tools', pictures: '/api/admin/pictures', files: '/api/admin/assets', users: '/api/admin/users',
     }
     const response = await fetch(routes[selectedTab], { cache: 'no-store' })
@@ -63,6 +64,7 @@ export default function AdminPanel() {
     if (selectedTab === 'pricing') {
       const services = payload.services || []
       setPricingServices(services)
+      setPricingLoadedSections(['logs'])
       setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
     }
     if (selectedTab === 'esim') {
@@ -75,6 +77,22 @@ export default function AdminPanel() {
   }, [tab])
 
   useEffect(() => { loadData().catch((error) => setMessage(error.message)) }, [loadData])
+
+  const replacePricingServices = (sectionId, services) => {
+    const sources = PRICING_SECTIONS.find((section) => section.id === sectionId)?.sources || []
+    setPricingServices((current) => [...current.filter((service) => !sources.includes(service.source)), ...services])
+  }
+
+  const loadPricingSection = async (sectionId) => {
+    setState('loading'); setMessage('')
+    const response = await fetch(`/api/admin/pricing?section=${encodeURIComponent(sectionId)}`, { cache: 'no-store' })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to load pricing'); return }
+    replacePricingServices(sectionId, payload.services || [])
+    setPricingLoadedSections((current) => current.includes(sectionId) ? current : [...current, sectionId])
+    setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
+    setState('idle')
+  }
 
   async function postVoucher(body, form) {
     setState('loading'); setMessage('')
@@ -242,12 +260,12 @@ export default function AdminPanel() {
     setState('loading'); setMessage('')
     const response = await fetch('/api/admin/pricing', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prices: { [serviceId]: editingPricingPrice }, mode: 'merge' }),
+      body: JSON.stringify({ prices: { [serviceId]: editingPricingPrice }, mode: 'merge', section: pricingSection }),
     })
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update pricing'); return }
     const services = payload.services || []
-    setPricingServices(services)
+    replacePricingServices(pricingSection, services)
     setEditingPricingId(''); setEditingPricingPrice('')
     setState('success'); setMessage('Service price updated. The new catalog and checkout price is now active.')
   }
@@ -257,11 +275,11 @@ export default function AdminPanel() {
     setState('loading'); setMessage('')
     const response = await fetch('/api/admin/pricing', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ boostingAdjustmentPercent }),
+      body: JSON.stringify({ boostingAdjustmentPercent, section: 'boosting' }),
     })
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update boosting prices'); return }
-    setPricingServices(payload.services || [])
+    replacePricingServices('boosting', payload.services || [])
     setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
     setState('success'); setMessage('Boosting percentage saved. Updated catalog and checkout prices are now active.')
   }
@@ -276,11 +294,11 @@ export default function AdminPanel() {
     setState('loading'); setMessage('')
     const response = await fetch('/api/admin/pricing', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prices: numberTierPrices, mode: 'merge' }),
+      body: JSON.stringify({ prices: numberTierPrices, mode: 'merge', section: 'number' }),
     })
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update number prices'); return }
-    setPricingServices(payload.services || [])
+    replacePricingServices('number', payload.services || [])
     setEditingNumberPrices(false); setNumberTierPrices({})
     setState('success'); setMessage('Budget, Silver, and Gold prices updated. The new checkout prices are active.')
   }
@@ -436,8 +454,8 @@ export default function AdminPanel() {
     </> : tab === 'pricing' ? <section className='admin-pricing admin-service-pricing'>
       <header><SlidersHorizontal /><div><small>EXACT SERVICE PRICING</small><h3>Edit account, number, and boosting prices</h3><p>Enter the exact amount customers should pay. Saved prices are used in both the catalog and checkout.</p></div></header>
       <nav className='admin-pricing-sections' aria-label='Pricing sections'>
-        {PRICING_SECTIONS.map((section) => <button type='button' className={pricingSection === section.id ? 'active' : ''} key={section.id} onClick={() => { setPricingSection(section.id); setPricingSearch(''); setVisiblePricingCount(60); setEditingPricingId(''); setEditingPricingPrice(''); setEditingNumberPrices(false); setNumberTierPrices({}) }}>
-          <span>{section.label}</span><strong>{pricingSectionCounts[section.id] || 0}</strong>
+        {PRICING_SECTIONS.map((section) => <button type='button' className={pricingSection === section.id ? 'active' : ''} key={section.id} onClick={() => { setPricingSection(section.id); setPricingSearch(''); setVisiblePricingCount(60); setEditingPricingId(''); setEditingPricingPrice(''); setEditingNumberPrices(false); setNumberTierPrices({}); if (!pricingLoadedSections.includes(section.id)) loadPricingSection(section.id).catch((error) => { setState('error'); setMessage(error.message) }) }}>
+          <span>{section.label}</span><strong>{pricingLoadedSections.includes(section.id) ? pricingSectionCounts[section.id] || 0 : '…'}</strong>
         </button>)}
       </nav>
       {pricingSection === 'number' ? <div className='admin-number-pricing'>
