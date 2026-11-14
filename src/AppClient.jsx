@@ -159,43 +159,47 @@ function AuthPage({ route }) {
 
   return (
     <main className="auth-page">
-      <nav className="auth-nav shell">
-        <Logo />
-        <a className="auth-back" href="#top"><ArrowLeft size={16} /> Back to home</a>
-      </nav>
       <section className="auth-shell shell">
         <div className="auth-form-panel">
+          <div className="auth-card-top">
+            <Logo />
+            <a className="auth-back" href="#top"><ArrowLeft size={16} /> Back home</a>
+          </div>
+          {!recoveryMode && !isAdminLogin && <div className="auth-mode-tabs" role="tablist" aria-label="Account access">
+            <button type="button" role="tab" aria-selected={!isSignup} className={!isSignup ? 'active' : ''} onClick={() => switchMode('#login')}>Sign In</button>
+            <button type="button" role="tab" aria-selected={isSignup} className={isSignup ? 'active' : ''} onClick={() => switchMode('#signup')}>Create Account</button>
+          </div>}
           <div className="auth-form-head">
             <span>{recoveryMode ? 'PASSWORD RECOVERY' : isSignup ? 'CREATE YOUR ACCOUNT' : isAdminLogin ? 'ADMINISTRATION' : 'WELCOME BACK'}</span>
-            <h2>{recoveryMode ? 'Reset your password' : isSignup ? 'Create your account' : isAdminLogin ? 'Admin sign in' : 'Sign in to continue'}</h2>
+            <h2>{recoveryMode ? 'Reset your password' : isSignup ? 'Create your account' : isAdminLogin ? 'Admin sign in' : 'Welcome back'}</h2>
             {recoveryMode
               ? <p>Remembered it? <button type="button" onClick={() => { setRecoveryMode(false); setMessage('') }}>Back to sign in</button></p>
-              : <p>{isAdminLogin ? <>Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></> : <>{isSignup ? 'Already have an account?' : 'Enter your details below, or'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? ' sign in' : ' create an account'}</button>.</>}</p>}
+              : <p>{isSignup ? 'Create your LMS Socials account and manage every service from one dashboard.' : 'Sign in to access your dashboard and manage your services.'}</p>}
           </div>
 
           <form className="auth-form" onSubmit={recoveryMode ? handlePasswordReset : handleSubmit}>
             {recoveryMode && <p className="auth-recovery-note">Enter the email address used for your LMS Socials account. We will send a secure link that expires after 30 minutes.</p>}
             {isSignup && !recoveryMode && (
               <label>
-                <span>Full name</span>
+                <span className="auth-field-head">Full name</span>
                 <div className="auth-input"><UserRound /><input name="name" type="text" placeholder="Your full name" autoComplete="name" required /></div>
               </label>
             )}
             <label>
-              <span>Email address</span>
+              <span className="auth-field-head">Email address</span>
               <div className="auth-input"><Mail /><input name="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></div>
             </label>
             {!recoveryMode && <label>
-              <span>Password</span>
+              <span className="auth-field-head">Password {!isSignup && <button type="button" onClick={() => { setRecoveryMode(true); setMessage('') }}>Forgot?</button>}</span>
               <div className="auth-input"><LockKeyhole /><input name="password" type={showPassword ? 'text' : 'password'} placeholder={isSignup ? 'At least 8 characters' : 'Enter your password'} minLength={8} autoComplete={isSignup ? 'new-password' : 'current-password'} required /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button></div>
             </label>}
             {!recoveryMode && <div className="auth-options">
               <label className="auth-check"><input type="checkbox" required={isSignup} /><span>{isSignup ? 'I agree to the terms and privacy policy' : 'Remember me'}</span></label>
-              {!isSignup && <button type="button" onClick={() => { setRecoveryMode(true); setMessage('') }}>Forgot password?</button>}
             </div>}
             <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Please wait…' : recoveryMode ? 'Send reset link' : isSignup ? 'Create my account' : 'Sign in'} {!loading && <ArrowRight size={18} />}</button>
             {message && <div className="auth-message" role="status" aria-live="polite"><Check size={16} /> {message}</div>}
           </form>
+          {!recoveryMode && isAdminLogin && <p className="auth-account-switch">Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></p>}
           {!isAdminLogin && <p className="auth-security"><ShieldCheck size={14} /> Encrypted sign-in <span aria-hidden="true">•</span> Private account access</p>}
         </div>
       </section>
