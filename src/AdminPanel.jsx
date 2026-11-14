@@ -250,6 +250,21 @@ export default function AdminPanel() {
     setState('success'); setMessage(`${user.email} has been ${action === 'ban' ? 'banned' : 'unbanned'}.`)
   }
 
+  const toggleAdmin = async (user) => {
+    const appointing = !user.isAdmin
+    const action = appointing ? 'appoint as an administrator' : 'remove administrator access from'
+    if (!window.confirm(`${appointing ? 'Appoint' : 'Remove'} ${user.email} ${appointing ? 'as an administrator' : 'from the administrator team'}?`)) return
+    setState('loading'); setMessage('')
+    const response = await fetch('/api/admin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, isAdmin: appointing }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) { setState('error'); setMessage(payload.message || `Unable to ${action} this user`); return }
+    setUsers((current) => current.map((item) => item.id === user.id ? { ...item, isAdmin: payload.isAdmin } : item))
+    setState('success'); setMessage(appointing ? `${user.email} is now an administrator.` : `${user.email} no longer has administrator access.`)
+  }
+
   const editServicePrice = (service) => {
     setEditingPricingId(service.id)
     setEditingPricingPrice(String(Number(service.priceKobo || 0) / 100))
@@ -544,6 +559,7 @@ export default function AdminPanel() {
     </div> : <div className='admin-users'>
       <div className='admin-user-summary'>
         <article><Users /><span><small>USERS</small><strong>{users.length}</strong></span></article>
+        <article><ShieldCheck /><span><small>ADMINS</small><strong>{users.filter((user) => user.isAdmin).length}</strong></span></article>
         <article><Ban /><span><small>BANNED</small><strong>{users.filter((user) => user.isBanned).length}</strong></span></article>
         <article><Layers3 /><span><small>ORDERS</small><strong>{users.reduce((sum, user) => sum + user.orderCount, 0)}</strong></span></article>
       </div>
@@ -551,11 +567,11 @@ export default function AdminPanel() {
         <aside className='admin-user-list'>
           <label className='admin-user-search'><Search /><input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder='Search name or email' /></label>
           <div>{filteredUsers.map((user) => <button key={user.id} className={selectedUser?.id === user.id ? 'active' : ''} onClick={() => setSelectedUserId(user.id)}>
-            <CircleUserRound /><span><strong>{user.name || 'Unnamed user'}</strong><small>{user.email}</small></span><em className={user.isBanned ? 'banned' : ''}>{user.isBanned ? 'banned' : 'active'}</em>
+            <CircleUserRound /><span><strong>{user.name || 'Unnamed user'}</strong><small>{user.email}</small></span><em className={user.isAdmin ? 'admin' : user.isBanned ? 'banned' : ''}>{user.isAdmin ? 'admin' : user.isBanned ? 'banned' : 'active'}</em>
           </button>)}{!filteredUsers.length && <p>No users match your search.</p>}</div>
         </aside>
         <main className='admin-user-detail'>{selectedUser ? <>
-          <header><div><small>USER ACCOUNT</small><h3>{selectedUser.name || 'Unnamed user'}</h3><p>{selectedUser.email}</p></div><button className={selectedUser.isBanned ? 'unban' : 'ban'} disabled={selectedUser.isAdmin || state === 'loading'} onClick={() => toggleBan(selectedUser)}>{selectedUser.isBanned ? <UserCheck /> : <Ban />}{selectedUser.isBanned ? 'Unban user' : 'Ban user'}</button></header>
+          <header><div><small>{selectedUser.isAdmin ? 'ADMINISTRATOR ACCOUNT' : 'USER ACCOUNT'}</small><h3>{selectedUser.name || 'Unnamed user'}</h3><p>{selectedUser.email}</p></div><div className='admin-user-actions'><button className={selectedUser.isAdmin ? 'remove-admin' : 'make-admin'} disabled={selectedUser.isProtectedAdmin || selectedUser.isCurrentAdmin || selectedUser.isBanned || state === 'loading'} onClick={() => toggleAdmin(selectedUser)}><ShieldCheck />{selectedUser.isAdmin ? 'Remove admin' : 'Make admin'}</button><button className={selectedUser.isBanned ? 'unban' : 'ban'} disabled={selectedUser.isAdmin || state === 'loading'} onClick={() => toggleBan(selectedUser)}>{selectedUser.isBanned ? <UserCheck /> : <Ban />}{selectedUser.isBanned ? 'Unban user' : 'Ban user'}</button></div></header>
           <div className='admin-user-meta'><span><small>Wallet</small><strong>{money(selectedUser.balanceKobo)}</strong></span><span><small>Total spent</small><strong>{money(selectedUser.totalSpentKobo)}</strong></span><span><small>Joined</small><strong>{selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : '—'}</strong></span></div>
           <h4>Purchase history <span>{selectedUser.orderCount}</span></h4>
           <div className='admin-orders'>{selectedUser.orders.length ? selectedUser.orders.map((order) => <article key={`${order.type}-${order.id}`}>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { getAdminSession } from '../../../../lib/admin'
-import { isAdminEmail } from '../../../../lib/auth'
+import { isAdminEmail, isAdminUser } from '../../../../lib/auth'
 import { getDatabase } from '../../../../lib/mongodb'
 
 export const runtime = 'nodejs'
@@ -14,7 +14,7 @@ export async function GET() {
 
   const database = await getDatabase()
   const users = await database.collection('users').find({}, {
-    projection: { email: 1, name: 1, balanceKobo: 1, createdAt: 1, updatedAt: 1, isBanned: 1, bannedAt: 1 },
+    projection: { email: 1, name: 1, balanceKobo: 1, createdAt: 1, updatedAt: 1, isBanned: 1, bannedAt: 1, isAdmin: 1 },
   }).sort({ createdAt: -1 }).limit(250).toArray()
   const userIds = users.map((user) => user._id)
 
@@ -71,7 +71,7 @@ export async function GET() {
     return {
       id: String(user._id), email: user.email, name: user.name || '', balanceKobo: Number(user.balanceKobo || 0),
       createdAt: user.createdAt, updatedAt: user.updatedAt, isBanned: Boolean(user.isBanned), bannedAt: user.bannedAt || null,
-      isAdmin: isAdminEmail(user.email), orderCount: orders.length,
+      isAdmin: isAdminUser(user), isProtectedAdmin: isAdminEmail(user.email), isCurrentAdmin: String(user._id) === String(admin.sub), orderCount: orders.length,
       totalSpentKobo: orders.filter((order) => !['refunded', 'failed'].includes(order.status)).reduce((sum, order) => sum + order.amountKobo, 0),
       orders,
     }
@@ -82,13 +82,31 @@ export async function PATCH(request) {
   const admin = await getAdminSession()
   if (!admin) return NextResponse.json({ message: 'Admin access required' }, { status: 403 })
   const body = await request.json().catch(() => ({}))
-  if (!ObjectId.isValid(body.userId) || typeof body.isBanned !== 'boolean') return NextResponse.json({ message: 'Invalid request' }, { status: 400 })
+  const isBanUpdate = typeof body.isBanned === 'boolean'
+  const isRoleUpdate = typeof body.isAdmin === 'boolean'
+  if (!ObjectId.isValid(body.userId) || isBanUpdate === isRoleUpdate) return NextResponse.json({ message: 'Invalid request' }, { status: 400 })
 
   const database = await getDatabase()
   const users = database.collection('users')
-  const user = await users.findOne({ _id: new ObjectId(body.userId) }, { projection: { email: 1 } })
+  const user = await users.findOne({ _id: new ObjectId(body.userId) }, { projection: { email: 1, isAdmin: 1, isBanned: 1 } })
   if (!user) return NextResponse.json({ message: 'User not found' }, { status: 404 })
-  if (isAdminEmail(user.email) || String(user._id) === String(admin.sub)) return NextResponse.json({ message: 'Administrator accounts cannot be banned' }, { status: 400 })
+
+  if (isRoleUpdate) {
+    if (isAdminEmail(user.email)) return NextResponse.json({ message: 'Protected owner roles are managed through server configuration' }, { status: 400 })
+    if (String(user._id) === String(admin.sub)) return NextResponse.json({ message: 'You cannot change your own administrator role' }, { status: 400 })
+    if (body.isAdmin && user.isBanned) return NextResponse.json({ message: 'Unban this user before appointing them as an administrator' }, { status: 400 })
+
+    const now = new Date()
+    await users.updateOne({ _id: user._id }, body.isAdmin ? {
+      $set: { isAdmin: true, adminAppointedAt: now, adminAppointedBy: admin.email, updatedAt: now },
+    } : {
+      $set: { isAdmin: false, updatedAt: now },
+      $unset: { adminAppointedAt: '', adminAppointedBy: '' },
+    })
+    return NextResponse.json({ success: true, isAdmin: body.isAdmin })
+  }
+
+  if (isAdminUser(user) || String(user._id) === String(admin.sub)) return NextResponse.json({ message: 'Administrator accounts cannot be banned' }, { status: 400 })
 
   const now = new Date()
   await users.updateOne({ _id: user._id }, {
