@@ -164,29 +164,13 @@ function AuthPage({ route }) {
         <a className="auth-back" href="#top"><ArrowLeft size={16} /> Back to home</a>
       </nav>
       <section className="auth-shell shell">
-        <div className="auth-visual">
-          <div className="auth-orb auth-orb-one" />
-          <div className="auth-orb auth-orb-two" />
-          <div className="auth-visual-copy">
-            <span className="auth-kicker"><Sparkles size={14} /> LMS SOCIALS</span>
-            <h1>{isSignup ? 'Your growth starts here.' : 'Welcome back to your lane.'}</h1>
-            <p>{isSignup
-              ? 'Create one account to access boosting, quality logs, foreign numbers, and order support.'
-              : 'Sign in to manage orders, track delivery, and keep every digital service in one place.'}</p>
-          </div>
-          <div className="auth-feature feature-boost"><TrendingUp /><span><small>Social boosting</small><strong>Fast delivery</strong></span></div>
-          <div className="auth-feature feature-logs"><CircleUserRound /><span><small>Quality logs</small><strong>Verified options</strong></span></div>
-          <div className="auth-feature feature-global"><Globe2 /><span><small>Global numbers</small><strong>40+ countries</strong></span></div>
-          <div className="auth-proof"><ShieldCheck /><span><strong>Private by design</strong><small>Your details stay protected.</small></span></div>
-        </div>
-
         <div className="auth-form-panel">
           <div className="auth-form-head">
-            <span>{recoveryMode ? 'PASSWORD RECOVERY' : isSignup ? 'JOIN LMS SOCIALS' : isAdminLogin ? 'ADMINISTRATION' : 'ACCOUNT ACCESS'}</span>
+            <span>{recoveryMode ? 'PASSWORD RECOVERY' : isSignup ? 'CREATE YOUR ACCOUNT' : isAdminLogin ? 'ADMINISTRATION' : 'WELCOME BACK'}</span>
             <h2>{recoveryMode ? 'Reset your password' : isSignup ? 'Create your account' : isAdminLogin ? 'Admin sign in' : 'Sign in to continue'}</h2>
             {recoveryMode
               ? <p>Remembered it? <button type="button" onClick={() => { setRecoveryMode(false); setMessage('') }}>Back to sign in</button></p>
-              : <p>{isAdminLogin ? <>Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></> : <>{isSignup ? 'Already have an account?' : 'New to LMS Socials?'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? 'Sign in' : 'Create account'}</button></>}</p>}
+              : <p>{isAdminLogin ? <>Customer account? <button type="button" onClick={() => switchMode('#login')}>Customer login</button></> : <>{isSignup ? 'Already have an account?' : 'Enter your details below, or'} <button type="button" onClick={() => switchMode(isSignup ? '#login' : '#signup')}>{isSignup ? ' sign in' : ' create an account'}</button>.</>}</p>}
           </div>
 
           <form className="auth-form" onSubmit={recoveryMode ? handlePasswordReset : handleSubmit}>
@@ -212,8 +196,7 @@ function AuthPage({ route }) {
             <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Please wait…' : recoveryMode ? 'Send reset link' : isSignup ? 'Create my account' : 'Sign in'} {!loading && <ArrowRight size={18} />}</button>
             {message && <div className="auth-message" role="status" aria-live="polite"><Check size={16} /> {message}</div>}
           </form>
-          {!isSignup && !isAdminLogin && <p className="auth-security"><ShieldCheck size={14} /> <a href="#admin/login">Administrator login</a></p>}
-          <p className="auth-security"><ShieldCheck size={14} /> Secured account access • No hidden steps</p>
+          {!isAdminLogin && <p className="auth-security"><ShieldCheck size={14} /> Encrypted sign-in <span aria-hidden="true">•</span> Private account access</p>}
         </div>
       </section>
     </main>
