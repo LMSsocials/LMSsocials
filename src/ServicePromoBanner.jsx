@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, ArrowRight, BadgeCheck, BarChart3, Globe2, Heart, MessageSquareText, ShieldCheck, Sparkles, Smartphone, TrendingUp, Users, Zap } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
+import boostHumanImage from '../public/assets/boosting-human-realistic.png'
+import numbersHumanImage from '../public/assets/numbers-human-realistic.png'
 
 function ProductVisual({ type }) {
   if (type === 'boost-dashboard') return <div className='product-art product-boost-dashboard'>
     <span className='product-halo one' /><span className='product-halo two' />
+    <Image className='product-human product-human-boost' src={boostHumanImage} alt='' sizes='(max-width: 560px) 55vw, 300px' />
     <div className='product-phone'>
       <i className='product-notch' />
       <header><b><Zap /> LMS</b><span><i /> LIVE</span></header>
@@ -27,6 +30,7 @@ function ProductVisual({ type }) {
 
   if (type === 'number-inbox') return <div className='product-art product-number-inbox'>
     <div className='network-globe'><Globe2 /><i className='route one' /><i className='route two' /><b className='node one' /><b className='node two' /><b className='node three' /></div>
+    <Image className='product-human product-human-numbers' src={numbersHumanImage} alt='' sizes='(max-width: 560px) 55vw, 300px' />
     <div className='product-phone'>
       <i className='product-notch' />
       <header><b><Smartphone /> Numbers</b><span><i /> LIVE</span></header>
