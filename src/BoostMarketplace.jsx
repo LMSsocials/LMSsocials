@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeBoostingTarget, parseBoostingQuantity, validateBoostingInput } from '../lib/boosting-validation.js'
 import './boost-validation.css'
 import ServicePromoBanner from './ServicePromoBanner'
-import boostingGrowthImage from '../public/assets/boosting-growth-banner.png'
 import {
   AlertCircle, ArrowRight, CheckCircle2, Facebook, Ghost, Hash, Instagram, Link2, Linkedin,
   LayoutGrid, LoaderCircle, MessageCircle, Music2, Pin, Search, Send, ShoppingBag, Twitch, Youtube,
@@ -153,15 +152,28 @@ export default function BoostMarketplace() {
     <section className='boost-market'>
       <ServicePromoBanner
         tone='boost'
-        image={boostingGrowthImage}
+        visualType='boost-dashboard'
         ribbon='Turn attention into real momentum'
-        eyebrow='SOCIAL GROWTH, SIMPLIFIED'
-        title='Make your next post '
-        accent='impossible to ignore.'
-        description='Choose the audience signal you need, set your quantity and launch from one clear, secure order flow.'
-        action='Build your boost'
+        eyebrow='BOOSTING, REIMAGINED'
+        title='Grow loud. '
+        accent='Look unstoppable.'
+        description='A clean growth dashboard, live services and one confident place to launch your next move.'
+        action='Start growing'
         targetId='boost-catalog'
         proof='Live service catalogue'
+        theme='gold'
+        artMode='product'
+        secondary={{
+          visualType: 'boost-metrics',
+          eyebrow: 'SOCIAL GROWTH, SIMPLIFIED',
+          title: 'Make your next post ',
+          accent: 'impossible to ignore.',
+          description: 'Choose the audience signal you need, set your quantity and launch from one clear, secure order flow.',
+          action: 'Build your boost',
+          theme: 'boost',
+          artMode: 'product',
+          spotlight: { label: 'GROWTH MODE', title: 'Built to stand out', note: 'Pick a service. Set your momentum.' },
+        }}
       />
       <header className='boost-market-head' id='boost-catalog'>
         <span>BOOST ACCOUNT</span>

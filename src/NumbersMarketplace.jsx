@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, CheckCircle2, ChevronDown, Clock3, Globe2, LoaderCircle, MessageSquareText, Search, Server, ShieldCheck, ShoppingCart, Smartphone } from 'lucide-react'
 import NumberInbox from './NumberInbox'
 import ServicePromoBanner from './ServicePromoBanner'
-import numbersGlobalImage from '../public/assets/numbers-global-banner.png'
 
 const servers = [
   { id: '1', label: 'Budget', note: 'Lowest available cost' },
@@ -147,15 +146,28 @@ export default function NumbersMarketplace({ userId }) {
   return <section className='number-market number-market-v2'>
     <ServicePromoBanner
       tone='numbers'
-      image={numbersGlobalImage}
+      visualType='number-inbox'
       ribbon='One number. A world of possibilities.'
-      eyebrow='GLOBAL SMS ACCESS'
-      title='Your verification line, '
-      accent='ready in moments.'
-      description='Choose a country and service, receive your number here and keep every incoming code in one secure inbox.'
-      action='Choose a number'
+      eyebrow='GLOBAL ACCESS, REFINED'
+      title='One line. '
+      accent='A world within reach.'
+      description='Secure international access, a private SMS inbox and global coverage—all from one beautifully simple flow.'
+      action='Go global'
       targetId='number-catalog'
       proof='Live global inventory'
+      theme='wine'
+      artMode='product'
+      secondary={{
+        visualType: 'number-network',
+        eyebrow: 'GLOBAL SMS ACCESS',
+        title: 'Your verification line, ',
+        accent: 'ready in moments.',
+        description: 'Choose a country and service, receive your number here and keep every incoming code in one secure inbox.',
+        action: 'Choose a number',
+        theme: 'numbers',
+        artMode: 'product',
+        spotlight: { label: 'GLOBAL COVERAGE', title: 'Private inbox ready', note: 'Choose a country. Catch your code.' },
+      }}
     />
     <header className='number-market-head' id='number-catalog'><div className='number-head-icon'><Smartphone /></div><div><span>FOREIGN NUMBERS</span><h2>Buy a verification number</h2><p>Choose a country and service. Receive your number and SMS code right here.</p></div><small><i /> Live inventory</small></header>
     <div className='number-server-grid' aria-label='Number supplier selection'>
