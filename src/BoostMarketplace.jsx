@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeBoostingTarget, parseBoostingQuantity, validateBoostingInput } from '../lib/boosting-validation.js'
 import './boost-validation.css'
+import ServicePromoBanner from './ServicePromoBanner'
+import boostingGrowthImage from '../public/assets/boosting-growth-banner.png'
 import {
   AlertCircle, ArrowRight, CheckCircle2, Facebook, Ghost, Hash, Instagram, Link2, Linkedin,
   LayoutGrid, LoaderCircle, MessageCircle, Music2, Pin, Search, Send, ShoppingBag, Twitch, Youtube,
@@ -149,7 +151,19 @@ export default function BoostMarketplace() {
 
   return (
     <section className='boost-market'>
-      <header className='boost-market-head'>
+      <ServicePromoBanner
+        tone='boost'
+        image={boostingGrowthImage}
+        ribbon='Turn attention into real momentum'
+        eyebrow='SOCIAL GROWTH, SIMPLIFIED'
+        title='Make your next post '
+        accent='impossible to ignore.'
+        description='Choose the audience signal you need, set your quantity and launch from one clear, secure order flow.'
+        action='Build your boost'
+        targetId='boost-catalog'
+        proof='Live service catalogue'
+      />
+      <header className='boost-market-head' id='boost-catalog'>
         <span>BOOST ACCOUNT</span>
         <h2>Choose a social service</h2>
         <p>Select a platform, then complete your order below.</p>
