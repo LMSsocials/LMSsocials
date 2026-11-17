@@ -160,8 +160,8 @@ export default function NumbersMarketplace({ userId }) {
       secondary={{
         visualType: 'number-network',
         eyebrow: 'GLOBAL SMS ACCESS',
-        title: 'Your global line, ',
-        accent: 'written in the stars.',
+        title: 'Your verification line, ',
+        accent: 'ready in moments.',
         description: 'Choose a country and service, receive your number here and keep every incoming code in one secure inbox.',
         action: 'Choose a number',
         theme: 'numbers',

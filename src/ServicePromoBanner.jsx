@@ -50,11 +50,7 @@ function ProductVisual({ type }) {
   </div>
 
   return <div className='product-art product-number-network'>
-    <div className='number-starfield' aria-hidden='true'>
-      <i className='star star-one' /><i className='star star-two' /><i className='star star-three' /><i className='star star-four' /><i className='star star-five' />
-      <i className='glint glint-one' /><i className='glint glint-two' /><i className='glint glint-three' />
-    </div>
-    <div className='network-radar'><Globe2 /><span className='radar-ring one' /><span className='radar-ring two' /><b className='radar-node one' /><b className='radar-node two' /><b className='radar-node three' /></div>
+    <div className='network-radar'><Globe2 /><span className='radar-ring one' /><span className='radar-ring two' /><i className='radar-sweep' /><b className='radar-node one' /><b className='radar-node two' /><b className='radar-node three' /></div>
     <article className='network-card top'><Globe2 /><span><small>GLOBAL ROUTE</small><strong>Coverage online</strong></span><i /></article>
     <article className='network-card bottom'><MessageSquareText /><span><small>SMS INBOX</small><strong>Ready for codes</strong></span><ShieldCheck /></article>
   </div>
