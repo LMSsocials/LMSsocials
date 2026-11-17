@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { ArrowDownToLine, Check, Eye, ImageIcon, LoaderCircle, Search, ShoppingBag, X } from 'lucide-react'
+import MarketplaceFeatureBanner from './MarketplaceFeatureBanner'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 const requestId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -46,7 +47,8 @@ export default function PicturesMarketplace() {
   const visiblePictures = pictures.filter((picture) => !query.trim() || `${picture.title} ${picture.description}`.toLowerCase().includes(query.trim().toLowerCase()))
 
   return <section className='dash-catalog pictures-market'>
-    <div className='dash-section-title'><div><span>PREVIEW GALLERY</span><h2>Working Pictures</h2></div><small className='live'><i /> Ready to download</small></div>
+    <MarketplaceFeatureBanner variant='pictures' />
+    <div className='dash-section-title' id='pictures-catalog'><div><span>PREVIEW GALLERY</span><h2>Working Pictures</h2></div><small className='live'><i /> Ready to download</small></div>
     <p className='tools-intro'>Preview every picture before you buy. The private full-quality download link appears only after payment.</p>
     <div className='voucher-tools'><label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder='Search pictures...' /></label></div>
     {message && <div className='voucher-message'>{message}</div>}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { ArrowUpRight, Check, LoaderCircle, ShoppingBag, Wrench } from 'lucide-react'
+import MarketplaceFeatureBanner from './MarketplaceFeatureBanner'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 const requestId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -35,7 +36,8 @@ export default function ToolsMarketplace() {
   }
 
   return <section className='dash-catalog tools-market'>
-    <div className='dash-section-title'><div><span>CURATED WEBSITES</span><h2>Working Tools</h2></div><small className='live'><i /> Available now</small></div>
+    <MarketplaceFeatureBanner variant='tools' />
+    <div className='dash-section-title' id='tools-catalog'><div><span>CURATED WEBSITES</span><h2>Working Tools</h2></div><small className='live'><i /> Available now</small></div>
     <p className='tools-intro'>Purchase a tool to unlock its private website link. Purchased links remain available in this section.</p>
     {message && <div className='voucher-message'>{message}</div>}
     {state === 'loading' && <div className='fund-loading'><LoaderCircle className='spin' /><span>Loading tools...</span></div>}

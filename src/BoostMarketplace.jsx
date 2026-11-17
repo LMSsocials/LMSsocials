@@ -153,11 +153,11 @@ export default function BoostMarketplace() {
       <ServicePromoBanner
         tone='boost'
         visualType='boost-dashboard'
-        ribbon='Turn attention into real momentum'
+        ribbon='Make the timeline yours'
         eyebrow='BOOSTING, REIMAGINED'
         title='Grow loud. '
         accent='Look unstoppable.'
-        description='A clean growth dashboard, live services and one confident place to launch your next move.'
+        description=''
         action='Start growing'
         targetId='boost-catalog'
         proof='Live service catalogue'

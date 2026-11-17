@@ -10,6 +10,7 @@ import numbersHumanImage from '../public/assets/numbers-human-realistic.png'
 function ProductVisual({ type }) {
   if (type === 'boost-dashboard') return <div className='product-art product-boost-dashboard'>
     <span className='product-halo one' /><span className='product-halo two' />
+    <span className='y2k-spark boost-one' /><span className='y2k-spark boost-two' /><span className='y2k-ring boost-ring' />
     <Image className='product-human product-human-boost' src={boostHumanImage} alt='' sizes='(max-width: 560px) 55vw, 300px' />
     <div className='product-phone'>
       <i className='product-notch' />
@@ -18,10 +19,15 @@ function ProductVisual({ type }) {
       <div className='product-services'><span><TrendingUp /><b>Boost</b></span><span><Users /><b>Audience</b></span><span><Heart /><b>Engage</b></span></div>
       <div className='product-activity'><small>Campaign activity</small><p><i /><i /><i /><i /><i /><i /></p><b><span /> Order running</b></div>
     </div>
-    <div className='product-float-card boost'><small>THIS WEEK</small><strong>+28.4%</strong><span><BarChart3 /> Momentum up</span></div>
+    <div className='y2k-mini-badge boost' aria-hidden='true'><Sparkles /><span>BOOST<br /><b>ONLINE</b></span></div>
   </div>
 
   if (type === 'boost-metrics') return <div className='product-art product-boost-metrics'>
+    <div className='boost-ring-stars' aria-hidden='true'>
+      <i className='star one' /><i className='star two' /><i className='star three' /><i className='star four' /><i className='star five' />
+      <i className='star six' /><i className='star seven' /><i className='star eight' /><i className='star nine' /><i className='star ten' />
+      <i className='star eleven' /><i className='star twelve' /><i className='star thirteen' /><i className='star fourteen' /><i className='star fifteen' /><i className='star sixteen' />
+    </div>
     <span className='metric-orbit outer' /><span className='metric-orbit inner' /><i className='metric-core'><TrendingUp /></i>
     <article className='metric-panel followers'><Users /><span><small>AUDIENCE</small><strong>Growing</strong></span><em>+18%</em></article>
     <article className='metric-panel engagement'><Heart /><span><small>ENGAGEMENT</small><strong>Moving</strong></span><em>+24%</em></article>
@@ -29,6 +35,8 @@ function ProductVisual({ type }) {
   </div>
 
   if (type === 'number-inbox') return <div className='product-art product-number-inbox'>
+    <div className='number-y2k-orbit' aria-hidden='true'><i /><i /><i /></div>
+    <span className='number-y2k-spark large' /><span className='number-y2k-spark small' />
     <div className='network-globe'><Globe2 /><i className='route one' /><i className='route two' /><b className='node one' /><b className='node two' /><b className='node three' /></div>
     <Image className='product-human product-human-numbers' src={numbersHumanImage} alt='' sizes='(max-width: 560px) 55vw, 300px' />
     <div className='product-phone'>
@@ -38,10 +46,15 @@ function ProductVisual({ type }) {
       <div className='number-message'><MessageSquareText /><span><small>NEW SMS</small><strong>Verification received</strong></span><BadgeCheck /></div>
       <div className='number-safe'><ShieldCheck /><span><b>Private inbox</b><small>Codes stay inside your account</small></span></div>
     </div>
+    <div className='number-y2k-status' aria-hidden='true'><MessageSquareText /><span><small>WORLDWIDE SIGNAL</small><b>SMS READY</b></span><i /></div>
   </div>
 
   return <div className='product-art product-number-network'>
-    <div className='network-radar'><Globe2 /><span className='radar-ring one' /><span className='radar-ring two' /><i className='radar-sweep' /><b className='radar-node one' /><b className='radar-node two' /><b className='radar-node three' /></div>
+    <div className='number-starfield' aria-hidden='true'>
+      <i className='star star-one' /><i className='star star-two' /><i className='star star-three' /><i className='star star-four' /><i className='star star-five' />
+      <i className='glint glint-one' /><i className='glint glint-two' /><i className='glint glint-three' />
+    </div>
+    <div className='network-radar'><Globe2 /><span className='radar-ring one' /><span className='radar-ring two' /><b className='radar-node one' /><b className='radar-node two' /><b className='radar-node three' /></div>
     <article className='network-card top'><Globe2 /><span><small>GLOBAL ROUTE</small><strong>Coverage online</strong></span><i /></article>
     <article className='network-card bottom'><MessageSquareText /><span><small>SMS INBOX</small><strong>Ready for codes</strong></span><ShieldCheck /></article>
   </div>
@@ -88,7 +101,7 @@ export default function ServicePromoBanner({
               <span className='service-promo-brand'><Image src={logoImage} alt='' sizes='44px' /><b>LMS SOCIALS</b><small>PREMIUM SERVICES</small></span>
               <span className='service-promo-kicker'><Zap /> {slide.eyebrow}</span>
               <h2>{slide.title}<em>{slide.accent}</em></h2>
-              <p>{slide.description}</p>
+              {slide.description && <p>{slide.description}</p>}
               <div className='service-promo-actions'>
                 <button type='button' tabIndex={index === activeSlide ? 0 : -1} onClick={() => document.getElementById(slide.targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{slide.action}<ArrowRight /></button>
                 <span><BadgeCheck /><small>Trusted flow</small><b>{slide.proof}</b></span>

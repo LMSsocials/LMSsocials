@@ -31,7 +31,26 @@ import heroImage from '../public/assets/boosting-hero-v3.png'
 import logoImage from '../public/assets/lms-logo-clean.png'
 import socialOrbitImage from '../public/assets/social-orbit.jpg'
 
-const Dashboard = dynamic(() => import('./Dashboard'), {
+const dashboardChunkRecoveryKey = 'lms-dashboard-chunk-recovery'
+
+const Dashboard = dynamic(() => import('./Dashboard')
+  .then((module) => {
+    if (typeof window !== 'undefined') window.sessionStorage.removeItem(dashboardChunkRecoveryKey)
+    return module
+  })
+  .catch((error) => {
+    const message = String(error?.message || error)
+    const isStaleChunk = error?.name === 'ChunkLoadError' || /failed to load chunk|loading chunk/i.test(message)
+    if (typeof window !== 'undefined' && isStaleChunk) {
+      const lastRecovery = Number(window.sessionStorage.getItem(dashboardChunkRecoveryKey) || 0)
+      if (Date.now() - lastRecovery > 15_000) {
+        window.sessionStorage.setItem(dashboardChunkRecoveryKey, String(Date.now()))
+        window.location.reload()
+        return new Promise(() => {})
+      }
+    }
+    throw error
+  }), {
   loading: () => <main className="auth-loading"><Logo /><span>Loading your dashboard...</span></main>,
 })
 
@@ -180,19 +199,19 @@ function AuthPage({ route }) {
           <form className="auth-form" onSubmit={recoveryMode ? handlePasswordReset : handleSubmit}>
             {recoveryMode && <p className="auth-recovery-note">Enter the email address used for your LMS Socials account. We will send a secure link that expires after 30 minutes.</p>}
             {isSignup && !recoveryMode && (
-              <label>
-                <span className="auth-field-head">Full name</span>
-                <div className="auth-input"><UserRound /><input name="name" type="text" placeholder="Your full name" autoComplete="name" required /></div>
-              </label>
+              <div className="auth-field">
+                <label className="auth-field-head" htmlFor="auth-name">Full name</label>
+                <div className="auth-input"><UserRound /><input id="auth-name" name="name" type="text" placeholder="Your full name" autoComplete="name" required /></div>
+              </div>
             )}
-            <label>
-              <span className="auth-field-head">Email address</span>
-              <div className="auth-input"><Mail /><input name="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></div>
-            </label>
-            {!recoveryMode && <label>
-              <span className="auth-field-head">Password {!isSignup && <button type="button" onClick={() => { setRecoveryMode(true); setMessage('') }}>Forgot?</button>}</span>
-              <div className="auth-input"><LockKeyhole /><input name="password" type={showPassword ? 'text' : 'password'} placeholder={isSignup ? 'At least 8 characters' : 'Enter your password'} minLength={8} autoComplete={isSignup ? 'new-password' : 'current-password'} required /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button></div>
-            </label>}
+            <div className="auth-field">
+              <label className="auth-field-head" htmlFor="auth-email">Email address</label>
+              <div className="auth-input"><Mail /><input id="auth-email" name="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></div>
+            </div>
+            {!recoveryMode && <div className="auth-field">
+              <div className="auth-field-head"><label htmlFor="auth-password">Password</label>{!isSignup && <button type="button" onClick={() => { setRecoveryMode(true); setMessage('') }}>Forgot?</button>}</div>
+              <div className="auth-input"><LockKeyhole /><input id="auth-password" name="password" type={showPassword ? 'text' : 'password'} placeholder={isSignup ? 'At least 8 characters' : 'Enter your password'} minLength={8} autoComplete={isSignup ? 'new-password' : 'current-password'} required /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button></div>
+            </div>}
             {!recoveryMode && <div className="auth-options">
               <label className="auth-check"><input type="checkbox" required={isSignup} /><span>{isSignup ? 'I agree to the terms and privacy policy' : 'Remember me'}</span></label>
             </div>}
