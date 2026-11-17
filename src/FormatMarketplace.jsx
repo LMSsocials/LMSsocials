@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { BookOpen, Download, FileText, LoaderCircle, Search, ShoppingBag } from 'lucide-react'
+import MarketplaceFeatureBanner from './MarketplaceFeatureBanner'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 const requestId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -47,7 +48,8 @@ export default function FormatMarketplace() {
   }
 
   return <section className='logs-market voucher-market format-market'>
-    <header className='logs-head'>
+    <MarketplaceFeatureBanner variant='format' />
+    <header className='logs-head' id='format-catalog'>
       <div><span>FORMAT LIBRARY</span><h2>Downloadable formats.</h2><p>Browse the available PDF and text resources. Purchased files stay in your library for future downloads.</p></div>
       <div className='voucher-trust'><BookOpen /><span><strong>PDF &amp; TXT files</strong><small>Private access after purchase</small></span></div>
     </header>

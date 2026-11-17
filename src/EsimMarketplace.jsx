@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Check, Clock3, LoaderCircle, MessageCircle, ShieldCheck, ShoppingBag, Wifi } from 'lucide-react'
+import MarketplaceFeatureBanner from './MarketplaceFeatureBanner'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
 const requestId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -54,7 +55,8 @@ export default function EsimMarketplace() {
   }
 
   return <section className='logs-market esim-market'>
-    <header className='logs-head'>
+    <MarketplaceFeatureBanner variant='esim' />
+    <header className='logs-head' id='esim-catalog'>
       <div><span>eSIM PLANS</span><h2>Stay connected for longer.</h2><p>Choose a duration and pay securely from your wallet. After payment, contact the admin on WhatsApp to receive your eSIM QR code.</p></div>
       <div className='voucher-trust'><ShieldCheck /><span><strong>Purchase protected</strong><small>Contact unlocks after payment</small></span></div>
     </header>
