@@ -3,9 +3,10 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import {
   ArrowLeft, ArrowRight, Bell, Building2, Check, CircleUserRound, Clock3, Copy, FileText, Globe2, Grid2X2, ImageIcon,
-  Gem, History, LoaderCircle, LogOut, Menu, PackageCheck, Plus, ReceiptText, Send, ShieldCheck, Sparkles, TrendingUp, WalletCards, Wifi, Wrench, X,
+  Gem, History, LoaderCircle, LogOut, Menu, PackageCheck, Plus, ReceiptText, Send, ShieldCheck, Snowflake, Sparkles, TrendingUp, WalletCards, Wifi, Wrench, X,
 } from 'lucide-react'
 import logoImage from '../public/assets/lms-logo-clean.png'
+import ChristmasCountdown from './ChristmasCountdown'
 
 const MarketplaceLoading = () => <section className='dash-catalog'><div className='fund-loading'><LoaderCircle className='spin' /><span>Loading marketplace...</span></div></section>
 const LogsMarketplace = dynamic(() => import('./LogsMarketplace'), { loading: MarketplaceLoading })
@@ -284,14 +285,15 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
   }
 
   return (
-    <main className='dash-page'>
+    <main className='dash-page christmas-dashboard'>
       <section className='dash-frame' id='dashboard'>
+        <div className='dash-holiday-strip'><span><Snowflake /> LMS Christmas season</span><strong>Grow merry. Sell bright.</strong><i aria-hidden='true'>✦</i></div>
         <nav className='dash-nav'>
           <button className='dash-menu-toggle' aria-label='Open menu' aria-controls='mobile-dashboard-menu' aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu /></button>
-          <a className='logo dash-brand' href='#top' aria-label='LMS Socials home'><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
+          <a className='logo dash-brand' href='#top' aria-label='LMS Socials home'><span className='logo-mark'><span className='santa-hat' aria-hidden='true'><i /></span><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
           <div className={'dash-nav-links ' + (mobileMenuOpen ? 'open' : '')} id='mobile-dashboard-menu'>
             <div className='dash-mobile-menu-head'>
-              <a className='logo' href='#top' onClick={() => setMobileMenuOpen(false)}><span className='logo-mark'><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
+              <a className='logo' href='#top' onClick={() => setMobileMenuOpen(false)}><span className='logo-mark'><span className='santa-hat' aria-hidden='true'><i /></span><Image src={logoImage} alt='' sizes='43px' /></span><span className='logo-word'>SOCIALS</span></a>
               <button type='button' aria-label='Close menu' onClick={() => setMobileMenuOpen(false)}><X /></button>
             </div>
             <div className='dash-mobile-profile'>
@@ -336,7 +338,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
         {showWelcomeOffer && <div className='welcome-offer-backdrop' role='presentation' onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseWelcomeOffer() }}><section className='welcome-offer' role='dialog' aria-modal='true' aria-labelledby='welcome-offer-title'>
           <button className='welcome-offer-close' type='button' aria-label='Close welcome message' onClick={onCloseWelcomeOffer}><X /></button>
           <span className='welcome-offer-icon'><Gem /></span>
-          <small>WELCOME TO LMS SOCIALS</small>
+          <small>MERRY CHRISTMAS FROM LMS</small>
           <h2 id='welcome-offer-title'>Welcome back, {firstName}!</h2>
           <p>Your account is ready. Add money to your wallet and start ordering any service in just a few taps.</p>
           <div className='welcome-offer-balance'><span><Sparkles /> AVAILABLE BALANCE</span><strong>{fullNaira(balance)}</strong><small>Secure funding through your dedicated bank account</small></div>
@@ -355,7 +357,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
           <h1>Order history</h1>
           <p>Review every purchase and follow its latest delivery status.</p>
         </header> : !activeService ? <><header className='dash-head'>
-          <div><h1>Welcome back, {firstName}.</h1><p>Choose a service and get started.</p></div>
+          <div><h1>Merry Christmas, {firstName}.</h1><p>Your festive dashboard is ready. Choose a service and keep growing.</p></div>
           <div className={'dash-head-stats ' + (balance >= 1000000 ? 'balance-expanded' : '')}>
             <div className='balance-stat'><div className='stat-label'><i><WalletCards /></i><small>Available balance</small></div><strong>{fullNaira(balance)}</strong><span>Ready to spend across every service</span><div className='wallet-actions'><button type='button' onClick={openFunding}><Plus /> Add Money</button><button type='button' onClick={openOrderHistory}><History /> History</button></div></div>
             <div className='order-stat'><div className='stat-label'><i><ReceiptText /></i><small>Orders</small></div><strong>{ordersState === 'loading' ? '—' : orders.length}</strong><span>All purchases</span></div>
@@ -369,6 +371,15 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
         </header>}
 
         <section className={'dash-layout ' + (isFundingPage ? 'funding-page' : isOrdersPage ? 'orders-page' : !activeService ? 'overview' : 'service-page')}>
+          {!activeService && !isOrdersPage && !isFundingPage && <section className='dashboard-christmas-hub' aria-labelledby='dashboard-christmas-title'>
+            <div className='dashboard-christmas-copy'><span><Gem /> YOUR CHRISTMAS HUB</span><h2 id='dashboard-christmas-title'>Make this season your brightest yet.</h2><p>Jump into today&apos;s festive picks or explore every LMS service from your dashboard.</p><button type='button' onClick={() => { window.location.hash = '#account/boosting' }}>Explore festive pick <ArrowRight /></button></div>
+            <ChristmasCountdown variant='dashboard' />
+            <div className='dashboard-festive-actions'>
+              <button type='button' onClick={() => { window.location.hash = '#account/boosting' }}><TrendingUp /><span><small>BUILD MOMENTUM</small><strong>Boost account</strong></span><ArrowRight /></button>
+              <button type='button' onClick={() => { window.location.hash = '#account/numbers' }}><Globe2 /><span><small>GO GLOBAL</small><strong>Foreign numbers</strong></span><ArrowRight /></button>
+              <button type='button' onClick={() => { window.location.hash = '#account/logs' }}><CircleUserRound /><span><small>FESTIVE PICK</small><strong>Quality logs</strong></span><ArrowRight /></button>
+            </div>
+          </section>}
           {isFundingPage && <section className='fund-page' aria-labelledby='fund-page-account-title'>
             <article className='fund-balance-card'>
               <div><span><WalletCards /> AVAILABLE BALANCE</span><strong>{fullNaira(balance)}</strong><small>Ready to spend across every LMS service</small></div>

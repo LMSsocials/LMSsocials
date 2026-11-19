@@ -14,8 +14,8 @@ const manrope = Manrope({
 })
 
 export const metadata = {
-  title: 'LMS Socials — Digital Growth Marketplace',
-  description: 'Social boosting, quality logs, and foreign numbers in one marketplace.',
+  title: 'LMS Socials — Christmas Growth Marketplace',
+  description: 'Celebrate the season with social boosting, quality logs, and foreign numbers in one festive marketplace.',
 }
 
 export default function RootLayout({ children }) {

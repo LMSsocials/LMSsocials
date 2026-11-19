@@ -11,6 +11,7 @@ import {
   ChevronDown,
   CircleUserRound,
   Globe2,
+  Gift,
   Eye,
   EyeOff,
   Instagram,
@@ -19,7 +20,7 @@ import {
   Menu,
   MessageCircle,
   ShieldCheck,
-  Sparkles,
+  Snowflake,
   Star,
   TrendingUp,
   UserRound,
@@ -30,6 +31,7 @@ import { authClient as supabase } from './lib/auth-client'
 import heroImage from '../public/assets/boosting-hero-v3.png'
 import logoImage from '../public/assets/lms-logo-clean.png'
 import socialOrbitImage from '../public/assets/social-orbit.jpg'
+import ChristmasCountdown from './ChristmasCountdown'
 
 const dashboardChunkRecoveryKey = 'lms-dashboard-chunk-recovery'
 
@@ -97,9 +99,26 @@ const countries = [
 function Logo() {
   return (
     <a className="logo" href="#top" aria-label="LMS Socials home">
-      <span className="logo-mark"><Image src={logoImage} alt="" sizes="74px" /></span>
+      <span className="logo-mark">
+        <span className="santa-hat" aria-hidden="true"><i /></span>
+        <Image src={logoImage} alt="" sizes="74px" />
+      </span>
       <span className="logo-word">SOCIALS</span>
     </a>
+  )
+}
+
+const snowflakes = Array.from({ length: 14 }, (_, index) => index)
+
+function ChristmasDecor() {
+  return (
+    <div className="christmas-decor" aria-hidden="true">
+      <div className="snowfall">
+        {snowflakes.map((flake) => (
+          <i key={flake} style={{ '--left': `${(flake * 7.15 + 2) % 100}%`, '--delay': `${flake * -0.85}s`, '--duration': `${8 + (flake % 5) * 1.4}s` }} />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -177,7 +196,7 @@ function AuthPage({ route }) {
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-page christmas-auth">
       <section className="auth-shell shell">
         <div className="auth-form-panel">
           <div className="auth-card-top">
@@ -251,7 +270,7 @@ function ResetPasswordPage() {
   }
 
   return (
-    <main className="auth-page reset-page">
+    <main className="auth-page reset-page christmas-auth">
       <nav className="auth-nav shell"><Logo /><a className="auth-back" href="#login"><ArrowLeft size={16} /> Back to login</a></nav>
       <section className="reset-card">
         <span><LockKeyhole /></span>
@@ -370,7 +389,13 @@ function App() {
   }
 
   return (
-    <main id="top">
+    <main id="top" className="christmas-site">
+      <ChristmasDecor />
+      <div className="holiday-banner">
+        <span><Snowflake size={14} /> Christmas at LMS</span>
+        <p>Festive season, serious growth.</p>
+        <a href="#services">Unwrap our services <ArrowRight size={14} /></a>
+      </div>
       <nav className="nav shell">
         <Logo />
         <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
@@ -384,14 +409,17 @@ function App() {
         <button className="menu-button" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X /> : <Menu />}
         </button>
+        <div className="christmas-lights" aria-hidden="true">
+          {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
+        </div>
       </nav>
 
       <section className="hero shell">
-        <div className="eyebrow"><span><Sparkles size={14} /></span> Your social growth plug</div>
-        <h1>Make your social<br />presence <em>loud.</em></h1>
-        <p className="hero-copy">Premium digital services for people who take growth seriously. Powerful boosting, quality logs, and global numbers—all under LMS.</p>
+        <div className="eyebrow"><span><Snowflake size={14} /></span> Sleigh your social goals</div>
+        <h1>Make your social<br />presence <em>merry & loud.</em></h1>
+        <p className="hero-copy">Premium digital services wrapped for the festive season. Powerful boosting, quality logs, and global numbers—all under one merry roof.</p>
         <div className="hero-actions">
-          <button type="button" className="button primary" onClick={openSignup}>Get started <ArrowRight size={18} /></button>
+          <button type="button" className="button primary" onClick={openSignup}><Gift size={18} /> Unwrap your growth <ArrowRight size={18} /></button>
         </div>
         <div className="trust-row">
           <div><span className="avatars"><i>J</i><i>D</i><i>A</i></span><span><b>2,000+</b> happy customers</span></div>
@@ -400,6 +428,7 @@ function App() {
         </div>
 
         <div className="hero-visual" aria-hidden="true">
+          <div className="hero-wreath"><span>LMS</span></div>
           <div className="hero-blob" />
           <Image
             className="hero-person"
@@ -455,6 +484,25 @@ function App() {
         </div>
       </section>
 
+      <section className="christmas-campaign section shell" aria-labelledby="christmas-campaign-title">
+        <div className="campaign-shell">
+          <div className="campaign-tree tree-left" aria-hidden="true"><i /><span /><span /><span /><span /></div>
+          <div className="campaign-tree tree-right" aria-hidden="true"><i /><span /><span /><span /><span /></div>
+          <div className="campaign-copy">
+            <span><Gift /> 12 DAYS OF LMS</span>
+            <h2 id="christmas-campaign-title">A little more <em>magic</em><br />for every move.</h2>
+            <p>Discover festive picks built to help your brand stay visible, connected, and ready for the busiest season of the year.</p>
+            <button className="button primary" type="button" onClick={openSignup}>Open your Christmas hub <ArrowRight size={18} /></button>
+          </div>
+          <ChristmasCountdown />
+          <div className="festive-picks">
+            <article><span><TrendingUp /></span><small>CREATOR GIFT</small><h3>Holiday momentum</h3><p>Keep your festive campaigns moving with reliable social growth.</p></article>
+            <article><span><Globe2 /></span><small>GLOBAL GREETINGS</small><h3>Connect worldwide</h3><p>Reach more regions with international numbers ready when needed.</p></article>
+            <article><span><CircleUserRound /></span><small>FESTIVE PICK</small><h3>Quality accounts</h3><p>Find clearly listed digital accounts for your seasonal projects.</p></article>
+          </div>
+        </div>
+      </section>
+
       <section className="scroll-story" aria-label="LMS Socials experience">
         <div className="story-sticky shell">
           <div className="story-copy">
@@ -472,7 +520,7 @@ function App() {
 
       <section className="services section shell" id="services">
         <div className="section-heading">
-          <div><span className="kicker">WHAT WE OFFER</span><h2>One platform.<br /><em>Endless possibilities.</em></h2></div>
+          <div><span className="kicker">GIFTS THAT KEEP GROWING</span><h2>One platform.<br /><em>Endless possibilities.</em></h2></div>
           <p>From building your online presence to connecting globally, LMS brings the essentials together—simple, fast, and reliable.</p>
         </div>
         <div className="service-grid">
@@ -517,8 +565,8 @@ function App() {
 
       <section className="cta-section shell" id="support">
         <div className="cta-inner">
-          <span className="kicker">READY WHEN YOU ARE</span>
-          <h2>Pick your lane.<br /><em>Let's get moving.</em></h2>
+          <span className="kicker">YOUR CHRISTMAS GROWTH STORY</span>
+          <h2>Make the season<br /><em>bright & busy.</em></h2>
           <p>Join thousands using LMS Socials to grow faster and connect further.</p>
           <a className="button primary" href="mailto:hello@boostlane.co">Start your first order <ArrowRight size={18} /></a>
         </div>
