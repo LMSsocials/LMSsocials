@@ -20,6 +20,7 @@ test('Threshold applies only below NGN 1,000 and rejects invalid prices', () => 
 })
 
 test('All number tiers obey their minimum, preserving higher supplier-derived prices', () => {
+  assert.deepEqual(NUMBER_SERVER_MARKUP_PERCENT, { '1': 30, '2': 45, '3': 60 })
   for (const [serverId, markup] of Object.entries(NUMBER_SERVER_MARKUP_PERCENT)) {
     for (const usd of [0.00001, 0.01, 0.031, 0.043, 0.1, 0.4, 0.7, 1, 10, 100]) {
       const original = Math.ceil(usd * NUMBER_USD_TO_NGN_RATE * (1 + markup / 100) * 100)
@@ -29,7 +30,7 @@ test('All number tiers obey their minimum, preserving higher supplier-derived pr
       if (original >= 100000) assert.equal(updated, Math.max(original, serverFloor))
     }
   }
-  assert.equal(numberSellingPriceKobo(0.043, '1'), 118300)
+  assert.equal(numberSellingPriceKobo(0.043, '1'), 118700)
 })
 
 test('Server 1 pins WhatsApp USA provider 3193 to NGN 3,500', () => {
@@ -41,7 +42,7 @@ test('Server 1 pins WhatsApp USA provider 3193 to NGN 3,500', () => {
 test('UK WhatsApp standard numbers cost at least NGN 6,500', () => {
   const offer = { countryId: '16', serviceCode: 'wa' }
   assert.equal(numberSellingPriceKobo(1, '1', offer), 650000)
-  assert.equal(numberSellingPriceKobo(10, '1', offer), 1743814)
+  assert.equal(numberSellingPriceKobo(10, '1', offer), 1820000)
 })
 
 test('eSIM-labelled supplier options start around NGN 10,000', () => {
@@ -84,6 +85,6 @@ test('Checkout rejects an old signed low-price quote and accepts the refreshed p
     .setProtectedHeader({ alg: 'HS256' }).setIssuer('lms-number-quote').setAudience('lms-number-checkout')
     .setIssuedAt().setExpirationTime('2m').sign(secret)
   await assert.rejects(() => sign(7499).then((token) => verifyNumberQuote(token, 'test-user')), /pricing has changed/)
-  const valid = await verifyNumberQuote(await sign(118300), 'test-user')
-  assert.equal(valid.sellingPriceKobo, 118300)
+  const valid = await verifyNumberQuote(await sign(118700), 'test-user')
+  assert.equal(valid.sellingPriceKobo, 118700)
 })

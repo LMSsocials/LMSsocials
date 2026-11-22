@@ -17,17 +17,24 @@ test('A hidden country cannot receive a quote', async () => {
   )
 })
 
-test('WhatsApp USA pins each server to its configured supplier product', () => {
-  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '1' }), '3193')
-  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '2' }), '2617')
-  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '3' }), '3459')
+test('WhatsApp USA configures the requested preferred supplier products', () => {
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '1' }), '3328')
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '2' }), '2368')
+  assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'wa', serverId: '3' }), '3193')
   assert.equal(numberProviderForOffer({ countryId: '187', serviceCode: 'tg', serverId: '2' }), undefined)
 })
 
-test('WhatsApp Australia pins Budget, Silver, and Gold to verified supplier products', () => {
-  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '1' }), '3451')
-  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '2' }), '3340')
-  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '3' }), '3514')
+test('WhatsApp UK configures the requested preferred supplier products', () => {
+  assert.equal(numberProviderForOffer({ countryId: '16', serviceCode: 'wa', serverId: '1' }), '3451')
+  assert.equal(numberProviderForOffer({ countryId: '16', serviceCode: 'wa', serverId: '2' }), '3514')
+  assert.equal(numberProviderForOffer({ countryId: '16', serviceCode: 'wa', serverId: '3' }), '3371')
+  assert.equal(numberProviderForOffer({ countryId: '16', serviceCode: 'tg', serverId: '1' }), undefined)
+})
+
+test('WhatsApp Australia configures the requested preferred supplier products', () => {
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '1' }), '2368')
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '2' }), '3514')
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '3' }), '3451')
   assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'tg', serverId: '1' }), undefined)
 })
 
@@ -43,7 +50,7 @@ test('Silver prefers a Gold supplier over cheaper unranked inventory', () => {
   const goldPartners = { 2: {}, 3: {} }
   assert.equal(chooseNumberSupplier({ prices, goldPartners, serverId: '2' }).providerId, '3')
   assert.equal(chooseNumberSupplier({ prices, goldPartners, serverId: '1' }).providerId, '1')
-  assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '3' }), null)
+  assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '3' }).providerId, '1')
   assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '2' }).gold, false)
 })
 
@@ -52,10 +59,10 @@ test('Unavailable/invalid inventory is never chosen', () => {
   assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '2' }), null)
 })
 
-test('A required supplier is selected exactly and never silently substituted', () => {
+test('A preferred supplier is selected when available and falls back when unavailable', () => {
   const prices = { 3192: { price: 1, count: 100 }, 3193: { price: 1.735, count: 20 } }
   assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '1', providerId: '3193' }).providerId, '3193')
-  assert.equal(chooseNumberSupplier({ prices: { 3192: prices[3192] }, goldPartners: {}, serverId: '1', providerId: '3193' }), null)
+  assert.equal(chooseNumberSupplier({ prices: { 3192: prices[3192] }, goldPartners: {}, serverId: '1', providerId: '3193' }).providerId, '3192')
 })
 
 test('SMS parsing preserves leading zeros and recognizes a previous delivered code', () => {
@@ -251,8 +258,8 @@ scenario('A stale lease cannot issue a wallet credit', async () => {
 })
 
 test('Live quote smoke check uses the configured WhatsApp USA offer without buying a number', { skip: process.env.LMS_NUMBER_QUOTE_SMOKE !== '1' }, async () => {
-  const quote = await createNumberQuote({ userId: 'test-only', countryId: '187', serviceCode: 'wa', serverId: '1' })
-  assert.equal(quote.priceKobo, 350000)
+  const quote = await createNumberQuote({ userId: 'test-only', countryId: '187', serviceCode: 'wa', serverId: '3' })
+  assert.ok(quote.priceKobo >= 1500000)
   await assert.rejects(() => verifyNumberQuote(quote.token, 'another-user'))
   const verified = await verifyNumberQuote(quote.token, 'test-only')
   assert.equal(verified.userId, 'test-only')

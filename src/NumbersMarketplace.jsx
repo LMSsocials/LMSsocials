@@ -5,8 +5,8 @@ import ServicePromoBanner from './ServicePromoBanner'
 
 const servers = [
   { id: '1', label: 'Budget', note: 'Lowest available cost' },
-  { id: '2', label: 'Silver', note: 'Silver supplier inventory', esim: true },
-  { id: '3', label: 'Gold', note: 'Gold suppliers exclusively', esim: true },
+  { id: '2', label: 'Silver', note: 'Preferred suppliers with stock fallback', esim: true },
+  { id: '3', label: 'Gold', note: 'Premium tier with stock fallback', esim: true },
 ]
 const money = (value) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(value)
 
@@ -182,14 +182,14 @@ export default function NumbersMarketplace({ userId }) {
         <div className='number-server-note'><CheckCircle2 /><span><strong>{servers.find((item) => item.id === serverId).label} selected</strong><small>Exact price confirmed before you buy</small></span></div>
         <SearchSelect label='Country' value={countryId} options={countries} disabled={purchasing || Boolean(pendingRequest)} placeholder='Select country…' searchPlaceholder='Search countries…' onChange={(value) => changeSelection(() => { setCountryId(value); setServiceCode('') })} />
         <SearchSelect label='Service' value={serviceCode} options={services} disabled={!countryId || purchasing || Boolean(pendingRequest)} placeholder='Select service…' searchPlaceholder='Search services…' onChange={(value) => changeSelection(() => setServiceCode(value))} />
-        <div className='number-match'><ShieldCheck /><span><strong>Choose your supplier quality</strong><small>Gold is the provider’s supplier classification. SMS speed and delivery are not guaranteed.</small></span></div>
+        <div className='number-match'><ShieldCheck /><span><strong>Choose your number tier</strong><small>Preferred suppliers are used when available, with in-stock fallback to keep selections available. SMS speed and delivery are not guaranteed.</small></span></div>
       </div>
       <aside className={'number-checkout ' + (selected ? 'selected' : '')}>
         <span>ORDER SUMMARY</span>
         {selected ? <><div className='number-selection-icon'><Smartphone /></div><small>{selected.country}</small><h3>{selected.service}</h3><p>One temporary number for receiving an SMS verification code.</p>
           {quoteState === 'loading' && <p role='status'><LoaderCircle className='spin' /> Checking supplier and price…</p>}
           {quoteError && quoteState === 'error' && <p role='alert' className='number-notice error'>{quoteError}</p>}
-          {quote && <><div className='number-availability'><i /> {quote.quality === 'gold' ? 'Gold supplier selected' : quote.quality === 'silver' ? 'Silver supplier selected' : 'Standard supplier selected'}</div><div className='number-total'><span><small>Total price</small><strong>{money(quote.priceKobo / 100)}</strong></span><button type='button' onClick={purchaseNumber} disabled={purchasing || expired || Boolean(pendingRequest)}><ShoppingCart /> {purchasing ? 'Purchasing…' : 'Buy number'}</button></div></>}
+          {quote && <><div className='number-availability'><i /> {quote.quality === 'gold' ? 'Gold option available' : quote.quality === 'silver' ? 'Silver option available' : 'Budget option available'}</div><div className='number-total'><span><small>Total price</small><strong>{money(quote.priceKobo / 100)}</strong></span><button type='button' onClick={purchaseNumber} disabled={purchasing || expired || Boolean(pendingRequest)}><ShoppingCart /> {purchasing ? 'Purchasing…' : 'Buy number'}</button></div></>}
           {(expired || quoteState === 'error') && <button className='number-refresh-quote' type='button' disabled={purchasing || Boolean(pendingRequest)} onClick={() => setQuoteRefresh((value) => value + 1)}>{expired ? 'Price expired — refresh price' : 'Check price again'}</button>}
           <p className='number-checkout-note'>Cancellation is available after two minutes if no SMS has arrived. Your full payment is refunded when cancellation is confirmed.</p>
         </> : <div className='number-empty'><Globe2 /><strong>Build your order</strong><small>Select a country and service to see the price.</small></div>}
