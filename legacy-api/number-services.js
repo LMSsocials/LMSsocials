@@ -1,7 +1,7 @@
 import { koboToNaira, numberSellingPriceKobo } from '../lib/number-pricing.js'
 import { isNumberCountryEnabled } from '../lib/number-catalog.js'
 import { getDatabase } from '../lib/mongodb.js'
-import { getSupplierPricing } from '../lib/supplier-pricing.js'
+import { getSupplierPricing, supplierPricingVersion } from '../lib/supplier-pricing.js'
 
 const PROVIDER_URL = 'https://smsbower.page/stubs/handler_api.php'
 const CACHE_TTL = 2 * 60 * 1000
@@ -18,7 +18,7 @@ async function providerRequest(apiKey, action) {
 
 export async function loadNumberOffers(apiKey, pricing = {}) {
   const cache = globalThis.__lmsNumberServicesCache || (globalThis.__lmsNumberServicesCache = {})
-  const pricingVersion = JSON.stringify(pricing.pricesKobo || {})
+  const pricingVersion = supplierPricingVersion(pricing)
   if (cache.offers?.length && cache.pricingVersion === pricingVersion && Date.now() - cache.updatedAt < CACHE_TTL) return cache.offers
   if (cache.refresh && cache.pricingVersion === pricingVersion) return cache.refresh
 

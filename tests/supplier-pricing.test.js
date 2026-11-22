@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { boostingProductPriceKobo, normalizeSupplierPricing, supplierProductPriceKobo, supplierPricingVersion } from '../lib/supplier-pricing.js'
+import { boostingProductPriceKobo, normalizeNumberMarkupPercent, normalizeSupplierPricing, supplierProductPriceKobo, supplierPricingVersion } from '../lib/supplier-pricing.js'
 
 test('Missing supplier pricing falls back when MongoDB returns null', () => {
   assert.deepEqual(normalizeSupplierPricing(null, { bulkaccMarkupPercent: 30, sujanMarkupPercent: 30 }), {
     bulkaccMarkupPercent: 30,
     sujanMarkupPercent: 30,
     boostingAdjustmentPercent: 0,
+    numberMarkupPercent: { '1': 30, '2': 45, '3': 60 },
     pricesKobo: {},
   })
 })
@@ -16,6 +17,7 @@ test('Partial supplier pricing preserves valid values and fills missing values',
     bulkaccMarkupPercent: 45,
     sujanMarkupPercent: 30,
     boostingAdjustmentPercent: 0,
+    numberMarkupPercent: { '1': 30, '2': 45, '3': 60 },
     pricesKobo: {},
   })
 })
@@ -45,6 +47,17 @@ test('Invalid boosting percentages fall back to zero', () => {
   const pricing = normalizeSupplierPricing({ boostingAdjustmentPercent: -100 })
   assert.equal(pricing.boostingAdjustmentPercent, 0)
   assert.equal(boostingProductPriceKobo(pricing, 'boosting:123', 200000), 200000)
+})
+
+test('Number tier percentages normalize independently', () => {
+  assert.deepEqual(normalizeNumberMarkupPercent({ '1': 15, '2': 27.5, '3': 90 }), { '1': 15, '2': 27.5, '3': 90 })
+  assert.deepEqual(normalizeNumberMarkupPercent({ '1': -1, '2': 'bad', '3': 1001 }), { '1': 30, '2': 45, '3': 60 })
+})
+
+test('Pricing cache version changes when number percentages change', () => {
+  const first = normalizeSupplierPricing({ numberMarkupPercent: { '1': 20, '2': 40, '3': 60 } })
+  const second = normalizeSupplierPricing({ numberMarkupPercent: { '1': 21, '2': 40, '3': 60 } })
+  assert.notEqual(supplierPricingVersion(first), supplierPricingVersion(second))
 })
 
 test('Exact overrides support boosting services and each number tier', () => {

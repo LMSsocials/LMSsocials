@@ -1,6 +1,6 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { upload } from '@vercel/blob/client'
-import { Ban, CircleUserRound, ExternalLink, FileText, ImageIcon, Layers3, LoaderCircle, PackagePlus, Pencil, Search, ShieldCheck, SlidersHorizontal, Trash2, UploadCloud, UserCheck, Users, Wifi, Wrench } from 'lucide-react'
+import { Ban, CircleUserRound, ExternalLink, FileText, ImageIcon, Layers3, LoaderCircle, PackagePlus, Search, ShieldCheck, SlidersHorizontal, Trash2, UploadCloud, UserCheck, Users, Wifi, Wrench } from 'lucide-react'
 import SocialIcon from './SocialIcon'
 
 const money = (kobo) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(kobo || 0) / 100)
@@ -30,10 +30,7 @@ export default function AdminPanel() {
   const [editingPricingId, setEditingPricingId] = useState('')
   const [editingPricingPrice, setEditingPricingPrice] = useState('')
   const [boostingAdjustmentPercent, setBoostingAdjustmentPercent] = useState('0')
-  const [numberCountryId, setNumberCountryId] = useState('')
-  const [numberServiceCode, setNumberServiceCode] = useState('')
-  const [editingNumberPrices, setEditingNumberPrices] = useState(false)
-  const [numberTierPrices, setNumberTierPrices] = useState({})
+  const [numberMarkupPercent, setNumberMarkupPercent] = useState({ '1': '30', '2': '45', '3': '60' })
   const [esimPlans, setEsimPlans] = useState([])
   const [esimPrices, setEsimPrices] = useState({})
   const [tools, setTools] = useState([])
@@ -66,6 +63,7 @@ export default function AdminPanel() {
       setPricingServices(services)
       setPricingLoadedSections(['logs'])
       setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
+      setNumberMarkupPercent(Object.fromEntries(Object.entries(payload.numberMarkupPercent || { '1': 30, '2': 45, '3': 60 }).map(([key, value]) => [key, String(value)])))
     }
     if (selectedTab === 'esim') {
       const plans = payload.plans || []
@@ -91,6 +89,7 @@ export default function AdminPanel() {
     replacePricingServices(sectionId, payload.services || [])
     setPricingLoadedSections((current) => current.includes(sectionId) ? current : [...current, sectionId])
     setBoostingAdjustmentPercent(String(payload.boostingAdjustmentPercent ?? 0))
+    setNumberMarkupPercent(Object.fromEntries(Object.entries(payload.numberMarkupPercent || { '1': 30, '2': 45, '3': 60 }).map(([key, value]) => [key, String(value)])))
     setState('idle')
   }
 
@@ -299,23 +298,18 @@ export default function AdminPanel() {
     setState('success'); setMessage('Boosting percentage saved. Updated catalog and checkout prices are now active.')
   }
 
-  const editNumberTierPrices = (tiers) => {
-    setNumberTierPrices(Object.fromEntries(tiers.map((tier) => [tier.id, String(Number(tier.priceKobo || 0) / 100)])))
-    setEditingNumberPrices(true)
-    setMessage('')
-  }
-
-  const saveNumberTierPrices = async () => {
+  const saveNumberMarkup = async (event) => {
+    event.preventDefault()
     setState('loading'); setMessage('')
     const response = await fetch('/api/admin/pricing', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prices: numberTierPrices, mode: 'merge', section: 'number' }),
+      body: JSON.stringify({ numberMarkupPercent, section: 'number' }),
     })
     const payload = await response.json().catch(() => ({}))
-    if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update number prices'); return }
+    if (!response.ok) { setState('error'); setMessage(payload.message || 'Unable to update number percentages'); return }
     replacePricingServices('number', payload.services || [])
-    setEditingNumberPrices(false); setNumberTierPrices({})
-    setState('success'); setMessage('Budget, Silver, and Gold prices updated. The new checkout prices are active.')
+    setNumberMarkupPercent(Object.fromEntries(Object.entries(payload.numberMarkupPercent || {}).map(([key, value]) => [key, String(value)])))
+    setState('success'); setMessage('Budget, Silver, and Gold percentages saved. Live catalog and checkout prices are now updated.')
   }
 
   const saveEsimPricing = async (event) => {
@@ -412,9 +406,7 @@ export default function AdminPanel() {
   const filteredUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(userSearch.trim().toLowerCase()))
   const deferredPricingSearch = useDeferredValue(pricingSearch)
   const pricingSectionCounts = useMemo(() => Object.fromEntries(PRICING_SECTIONS.map((section) => [
-    section.id, section.id === 'number'
-      ? new Set(pricingServices.filter((service) => service.source === 'number').map((service) => `${service.countryId}:${service.serviceCode}`)).size
-      : pricingServices.reduce((total, service) => total + Number(section.sources.includes(service.source)), 0),
+    section.id, section.id === 'number' ? 3 : pricingServices.reduce((total, service) => total + Number(section.sources.includes(service.source)), 0),
   ])), [pricingServices])
   const activePricingSection = PRICING_SECTIONS.find((section) => section.id === pricingSection) || PRICING_SECTIONS[0]
   const sectionPricingServices = useMemo(() => pricingServices.filter((service) => activePricingSection.sources.includes(service.source)), [pricingServices, activePricingSection])
@@ -424,10 +416,6 @@ export default function AdminPanel() {
     return sectionPricingServices.filter((service) => `${service.title} ${service.category} ${service.source}`.toLowerCase().includes(query))
   }, [sectionPricingServices, deferredPricingSearch])
   const visiblePricingServices = filteredPricingServices.slice(0, visiblePricingCount)
-  const numberPricingServices = useMemo(() => pricingServices.filter((service) => service.source === 'number'), [pricingServices])
-  const numberCountries = useMemo(() => Array.from(new Map(numberPricingServices.map((service) => [service.countryId, service.country])).entries()).sort((left, right) => left[1].localeCompare(right[1])), [numberPricingServices])
-  const numberServices = useMemo(() => Array.from(new Map(numberPricingServices.filter((service) => service.countryId === numberCountryId).map((service) => [service.serviceCode, service.service])).entries()).sort((left, right) => left[1].localeCompare(right[1])), [numberPricingServices, numberCountryId])
-  const selectedNumberTiers = useMemo(() => numberPricingServices.filter((service) => service.countryId === numberCountryId && service.serviceCode === numberServiceCode).sort((left, right) => Number(left.serverId) - Number(right.serverId)), [numberPricingServices, numberCountryId, numberServiceCode])
   const selectedUser = users.find((user) => user.id === selectedUserId) || filteredUsers[0]
 
   return <section className='admin-panel'>
@@ -467,26 +455,28 @@ export default function AdminPanel() {
         ? <div className='admin-asset-price-editor admin-product-price-editor'><input aria-label={`New price for ${product.title}`} type='number' min='100' step='50' value={productPrice} onChange={(event) => setProductPrice(event.target.value)} /><button type='button' disabled={state === 'loading'} onClick={() => saveProductPrice(product._id)}>Save</button><button type='button' onClick={() => { setEditingProductId(''); setProductPrice('') }}>Cancel</button></div>
         : <div className='admin-product-actions'><button className='admin-asset-edit' type='button' onClick={() => editProductPrice(product)}>Edit price</button><button className={`admin-product-publish ${product.isPublished ? 'live' : 'draft'}`} type='button' disabled={state === 'loading'} onClick={() => toggleProductPublication(product)}>{product.isPublished ? 'Move to draft' : 'Publish'}</button></div>}<em className={product.isPublished ? 'live' : 'draft'}>{product.isPublished ? 'live' : 'draft'}</em></article>) : <p>Create your first log product, then add codes to its stock.</p>}</aside>
     </> : tab === 'pricing' ? <section className='admin-pricing admin-service-pricing'>
-      <header><SlidersHorizontal /><div><small>EXACT SERVICE PRICING</small><h3>Edit account, number, and boosting prices</h3><p>Enter the exact amount customers should pay. Saved prices are used in both the catalog and checkout.</p></div></header>
+      <header><SlidersHorizontal /><div><small>LIVE PRICING CONTROL</small><h3>Manage account, number, and boosting prices</h3><p>Numbers and boosting use percentage controls. Any saved price is applied consistently in both the catalog and checkout.</p></div></header>
       <nav className='admin-pricing-sections' aria-label='Pricing sections'>
-        {PRICING_SECTIONS.map((section) => <button type='button' className={pricingSection === section.id ? 'active' : ''} key={section.id} onClick={() => { setPricingSection(section.id); setPricingSearch(''); setVisiblePricingCount(60); setEditingPricingId(''); setEditingPricingPrice(''); setEditingNumberPrices(false); setNumberTierPrices({}); if (!pricingLoadedSections.includes(section.id)) loadPricingSection(section.id).catch((error) => { setState('error'); setMessage(error.message) }) }}>
+        {PRICING_SECTIONS.map((section) => <button type='button' className={pricingSection === section.id ? 'active' : ''} key={section.id} onClick={() => { setPricingSection(section.id); setPricingSearch(''); setVisiblePricingCount(60); setEditingPricingId(''); setEditingPricingPrice(''); if (!pricingLoadedSections.includes(section.id)) loadPricingSection(section.id).catch((error) => { setState('error'); setMessage(error.message) }) }}>
           <span>{section.label}</span><strong>{pricingLoadedSections.includes(section.id) ? pricingSectionCounts[section.id] || 0 : '…'}</strong>
         </button>)}
       </nav>
-      {pricingSection === 'number' ? <div className='admin-number-pricing'>
-        <div className='admin-number-selectors'>
-          <label>Country<select value={numberCountryId} onChange={(event) => { setNumberCountryId(event.target.value); setNumberServiceCode(''); setEditingNumberPrices(false); setNumberTierPrices({}) }}><option value=''>Select country…</option>{numberCountries.map(([id, country]) => <option value={id} key={id}>{country}</option>)}</select></label>
-          <label>Service<select value={numberServiceCode} disabled={!numberCountryId} onChange={(event) => { setNumberServiceCode(event.target.value); setEditingNumberPrices(false); setNumberTierPrices({}) }}><option value=''>Select service…</option>{numberServices.map(([code, service]) => <option value={code} key={code}>{service}</option>)}</select></label>
-        </div>
-        {selectedNumberTiers.length ? <section className='admin-number-tier-panel'>
-          <header><div><small>ALL THREE TIERS</small><h4>{numberCountries.find(([id]) => id === numberCountryId)?.[1]} · {numberServices.find(([code]) => code === numberServiceCode)?.[1]}</h4><p>Edit every customer tier together, then save once.</p></div>{!editingNumberPrices && <button type='button' onClick={() => editNumberTierPrices(selectedNumberTiers)}><Pencil /> Edit all tiers</button>}</header>
-          <div className='admin-number-tier-grid'>{selectedNumberTiers.map((tier) => <article key={tier.id}>
-            <span>OPTION {tier.serverId}</span><h5>{tier.tier}</h5><small>{tier.serverId === '1' ? 'Lowest available cost' : tier.serverId === '2' ? 'Preferred suppliers with stock fallback' : 'Premium tier with stock fallback'}</small>
-            {editingNumberPrices ? <label><span>₦</span><input aria-label={`${tier.tier} price`} type='number' min='100' max='10000000' step='50' value={numberTierPrices[tier.id] || ''} onChange={(event) => setNumberTierPrices((current) => ({ ...current, [tier.id]: event.target.value }))} /></label> : <strong>{money(tier.priceKobo)}</strong>}
+      {pricingSection === 'number' ? <form className='admin-number-pricing' onSubmit={saveNumberMarkup}>
+        <section className='admin-number-tier-panel'>
+          <header><div><small>LIVE SUPPLIER COST + MARKUP</small><h4>Number tier percentages</h4><p>These percentages apply to every country and service in both the customer catalog and checkout.</p></div></header>
+          <div className='admin-number-tier-grid'>{[
+            ['1', 'Budget', 'Lowest live supplier cost plus your Budget markup'],
+            ['2', 'Silver', 'Live supplier cost plus your Silver markup'],
+            ['3', 'Gold', 'Live supplier cost plus your Gold markup'],
+          ].map(([serverId, tier, note]) => <article key={serverId}>
+            <span>OPTION {serverId}</span><h5>{tier}</h5><small>{note}</small>
+            <label className='percentage'><input aria-label={`${tier} markup percentage`} type='number' min='0' max='1000' step='0.1' value={numberMarkupPercent[serverId] ?? ''} onChange={(event) => setNumberMarkupPercent((current) => ({ ...current, [serverId]: event.target.value }))} required /><span>%</span></label>
+            <em>Supplier cost + {numberMarkupPercent[serverId] || 0}%</em>
           </article>)}</div>
-          {editingNumberPrices && <footer><button type='button' className='secondary' onClick={() => { setEditingNumberPrices(false); setNumberTierPrices({}) }}>Cancel</button><button type='button' disabled={state === 'loading' || selectedNumberTiers.some((tier) => !numberTierPrices[tier.id])} onClick={saveNumberTierPrices}>{state === 'loading' ? <LoaderCircle className='spin' /> : <Pencil />} Save all tier prices</button></footer>}
-        </section> : <div className='admin-number-empty'><SlidersHorizontal /><strong>{numberCountryId ? 'Choose a service' : 'Choose a country'}</strong><span>{numberCountryId ? 'Select a service to edit its Budget, Silver, and Gold prices.' : 'Start with a country to find its available number services.'}</span></div>}
-      </div> : <>{pricingSection === 'boosting' && <form className='admin-boosting-adjustment' onSubmit={saveBoostingAdjustment}>
+          <div className='admin-number-pricing-note'><SlidersHorizontal /><span><strong>Normal live pricing</strong><small>Old fixed number prices and artificial minimums are no longer used. A fresh quote always uses current supplier cost and the percentage above.</small></span></div>
+          <footer><button type='submit' disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Apply all percentages</button></footer>
+        </section>
+      </form> : <>{pricingSection === 'boosting' && <form className='admin-boosting-adjustment' onSubmit={saveBoostingAdjustment}>
         <label><span>Adjust all calculated boosting prices</span><div><input aria-label='Boosting price percentage adjustment' type='number' min='-90' max='1000' step='0.1' value={boostingAdjustmentPercent} onChange={(event) => setBoostingAdjustmentPercent(event.target.value)} required /><strong>%</strong></div><small>Use a positive number to increase prices or a negative number to decrease them. Exact service prices stay fixed.</small></label>
         <div className='admin-boosting-adjustment-preview'><small>CURRENT EFFECT</small><strong>{Number(boostingAdjustmentPercent) > 0 ? `+${boostingAdjustmentPercent}%` : `${boostingAdjustmentPercent || 0}%`}</strong></div>
         <button disabled={state === 'loading'}>{state === 'loading' ? <LoaderCircle className='spin' /> : <SlidersHorizontal />} Apply percentage</button>

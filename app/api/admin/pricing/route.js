@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb'
 import { getAdminSession } from '../../../../lib/admin'
 import { getDatabase } from '../../../../lib/mongodb'
 import { bulkCatalog, bulkPricingCatalogItems, sujanCatalog } from '../../../../lib/log-providers'
-import { getSupplierPricing, normalizeBoostingAdjustmentPercent, supplierProductPriceKobo } from '../../../../lib/supplier-pricing'
+import { getSupplierPricing, normalizeBoostingAdjustmentPercent, normalizeNumberMarkupPercent, supplierProductPriceKobo } from '../../../../lib/supplier-pricing'
 import { getBoostingServices } from '../../../../lib/boosting-provider.js'
 import { loadNumberOffers } from '../../../../legacy-api/number-services.js'
 import { invalidateVoucherCatalogResponse } from '../../../../lib/voucher-catalog-cache'
@@ -98,7 +98,11 @@ export async function GET(request) {
   if (!['all', 'logs', 'boosting', 'number'].includes(requestedSection)) return NextResponse.json({ message: 'Invalid pricing section' }, { status: 400 })
   const database = await getDatabase()
   const pricing = await getSupplierPricing(database)
-  return NextResponse.json({ services: await getEditableServices(database, pricing, requestedSection), boostingAdjustmentPercent: pricing.boostingAdjustmentPercent })
+  return NextResponse.json({
+    services: await getEditableServices(database, pricing, requestedSection),
+    boostingAdjustmentPercent: pricing.boostingAdjustmentPercent,
+    numberMarkupPercent: pricing.numberMarkupPercent,
+  })
 }
 
 export async function PATCH(request) {
@@ -109,7 +113,15 @@ export async function PATCH(request) {
   const pricesWereSubmitted = Object.hasOwn(body, 'prices')
   const hasPrices = submitted && typeof submitted === 'object' && !Array.isArray(submitted)
   const hasBoostingAdjustment = Object.hasOwn(body, 'boostingAdjustmentPercent')
-  if ((pricesWereSubmitted && !hasPrices) || (!hasPrices && !hasBoostingAdjustment) || (hasPrices && Object.keys(submitted).length > 1000)) {
+  const hasNumberMarkup = Object.hasOwn(body, 'numberMarkupPercent')
+  const submittedNumberMarkup = body.numberMarkupPercent
+  const validNumberMarkup = submittedNumberMarkup && typeof submittedNumberMarkup === 'object' && !Array.isArray(submittedNumberMarkup)
+    && ['1', '2', '3'].every((serverId) => {
+      const percentage = Number(submittedNumberMarkup[serverId])
+      return Number.isFinite(percentage) && percentage >= 0 && percentage <= 1000
+    })
+  if ((pricesWereSubmitted && !hasPrices) || (!hasPrices && !hasBoostingAdjustment && !hasNumberMarkup)
+    || (hasPrices && Object.keys(submitted).length > 1000) || (hasNumberMarkup && !validNumberMarkup)) {
     return NextResponse.json({ message: 'Submit a valid service price list' }, { status: 400 })
   }
   const database = await getDatabase()
@@ -134,6 +146,7 @@ export async function PATCH(request) {
   if (hasBoostingAdjustment && !Number.isFinite(boostingAdjustmentPercent)) {
     return NextResponse.json({ message: 'Boosting adjustment must be between -90% and +1000%' }, { status: 400 })
   }
+  const numberMarkupPercent = hasNumberMarkup ? normalizeNumberMarkupPercent(submittedNumberMarkup) : currentPricing.numberMarkupPercent
   const now = new Date()
   if (managedPriceUpdates.length) {
     const managedIds = managedPriceUpdates.map((item) => item.productId)
@@ -149,6 +162,10 @@ export async function PATCH(request) {
   const changes = { updatedAt: now, updatedBy: admin.email }
   if (hasPrices) changes.pricesKobo = pricesKobo
   if (hasBoostingAdjustment) changes.boostingAdjustmentPercent = boostingAdjustmentPercent
+  if (hasNumberMarkup) {
+    changes.numberMarkupPercent = numberMarkupPercent
+    changes.pricesKobo = Object.fromEntries(Object.entries(currentPricing.pricesKobo || {}).filter(([reference]) => !reference.startsWith('number:')))
+  }
   await database.collection('storeSettings').updateOne(
     { _id: 'supplier-pricing' },
     { $set: changes },
@@ -157,5 +174,9 @@ export async function PATCH(request) {
   invalidateVoucherCatalogResponse()
   const pricing = await getSupplierPricing(database)
   const requestedSection = ['logs', 'boosting', 'number'].includes(body.section) ? body.section : 'all'
-  return NextResponse.json({ services: await getEditableServices(database, pricing, requestedSection), boostingAdjustmentPercent: pricing.boostingAdjustmentPercent })
+  return NextResponse.json({
+    services: await getEditableServices(database, pricing, requestedSection),
+    boostingAdjustmentPercent: pricing.boostingAdjustmentPercent,
+    numberMarkupPercent: pricing.numberMarkupPercent,
+  })
 }
