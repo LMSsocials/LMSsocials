@@ -32,7 +32,7 @@ test('WhatsApp UK configures the requested preferred supplier products', () => {
 })
 
 test('WhatsApp Australia configures the requested preferred supplier products', () => {
-  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '1' }), '2368')
+  assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '1' }), '3451')
   assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '2' }), '3514')
   assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'wa', serverId: '3' }), '3451')
   assert.equal(numberProviderForOffer({ countryId: '175', serviceCode: 'tg', serverId: '1' }), undefined)
@@ -87,13 +87,13 @@ test('Forged quote cannot choose the debit amount', async () => {
   await assert.rejects(() => verifyNumberQuote('fake-token', 'user'))
 })
 
-test('Reservation pins the quoted supplier and maximum price with no silent retry', async (t) => {
+test('Reservation pins the quoted supplier and allows bounded price movement with no silent retry', async (t) => {
   process.env.SMSBOWER_API_KEY ||= 'test-only'
   let calls = 0
   t.mock.method(globalThis, 'fetch', async (url) => {
     calls++
     assert.equal(url.searchParams.get('providerIds'), '3209')
-    assert.equal(url.searchParams.get('maxPrice'), '0.067')
+    assert.equal(url.searchParams.get('maxPrice'), '0.0737')
     assert.equal(url.searchParams.get('action'), 'getNumberV2')
     return new Response('NO_NUMBERS')
   })

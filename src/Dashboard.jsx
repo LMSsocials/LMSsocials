@@ -324,6 +324,16 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
             <button aria-label='Sign out' onClick={onSignOut}><LogOut /></button>
           </div>
         </nav>
+        {!activeService && !isOrdersPage && !isFundingPage && <a className='dashboard-notice-ticker' href='https://t.me/lurdmorrestsupport' target='_blank' rel='noreferrer' aria-label='Contact LMS Social on Telegram about prices or stock'>
+          <span className='dashboard-notice-label'><Send /> LMS LIVE</span>
+          <span className='dashboard-notice-window'>
+            <span className='dashboard-notice-track'>
+              <span>Welcome to LMS Social. Have any issues with prices or stock? Please kindly text us on Telegram.</span>
+              <span aria-hidden='true'>Welcome to LMS Social. Have any issues with prices or stock? Please kindly text us on Telegram.</span>
+            </span>
+          </span>
+          <span className='dashboard-notice-action'>Open Telegram <ArrowRight /></span>
+        </a>}
         {notificationOpen && <><button className='notification-backdrop' aria-label='Close notifications' onClick={() => setNotificationOpen(false)} /><section className='notification-panel' id='dashboard-notifications' role='dialog' aria-modal='true' aria-labelledby='notification-title'>
           <header><div><small>ACTIVITY</small><h2 id='notification-title'>Notifications</h2></div><button type='button' aria-label='Close notifications' onClick={() => setNotificationOpen(false)}><X /></button></header>
           <div className='notification-list'>
