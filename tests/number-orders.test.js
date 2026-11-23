@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { MongoClient, ObjectId } from 'mongodb'
-import { chooseNumberSupplier, parseNumberStatus, verifyNumberQuote, createNumberQuote, reserveQuotedNumber } from '../lib/number-provider.js'
+import { chooseNumberSupplier, rankNumberSuppliers, parseNumberStatus, verifyNumberQuote, createNumberQuote, reserveQuotedNumber } from '../lib/number-provider.js'
 import { publicNumberOrder, syncNumberOrder } from '../lib/number-order-lifecycle.js'
 import { isNumberCountryEnabled, numberProviderForOffer } from '../lib/number-catalog.js'
 
@@ -65,6 +65,18 @@ test('A preferred supplier is selected when available and falls back when unavai
   assert.equal(chooseNumberSupplier({ prices: { 3192: prices[3192] }, goldPartners: {}, serverId: '1', providerId: '3193' }).providerId, '3192')
 })
 
+test('Supplier ranking keeps the handpicked product first and retains stock fallbacks', () => {
+  const prices = {
+    100: { price: 1, count: 500 },
+    200: { price: 1.02, count: 20 },
+    300: { price: 1.01, count: 30 },
+  }
+  assert.deepEqual(
+    rankNumberSuppliers({ prices, goldPartners: { 300: {} }, serverId: '2', providerId: '200' }).map((row) => row.providerId),
+    ['200', '300', '100'],
+  )
+})
+
 test('SMS parsing preserves leading zeros and recognizes a previous delivered code', () => {
   assert.deepEqual(parseNumberStatus('STATUS_OK:001234'), { status: 'completed', smsCode: '001234' })
   assert.deepEqual(parseNumberStatus('STATUS_WAIT_RETRY:000321'), { status: 'completed', smsCode: '000321' })
@@ -87,17 +99,17 @@ test('Forged quote cannot choose the debit amount', async () => {
   await assert.rejects(() => verifyNumberQuote('fake-token', 'user'))
 })
 
-test('Reservation pins the quoted supplier and allows bounded price movement with no silent retry', async (t) => {
+test('Reservation sends the handpicked supplier first with signed stock fallbacks', async (t) => {
   process.env.SMSBOWER_API_KEY ||= 'test-only'
   let calls = 0
   t.mock.method(globalThis, 'fetch', async (url) => {
     calls++
-    assert.equal(url.searchParams.get('providerIds'), '3209')
+    assert.equal(url.searchParams.get('providerIds'), '3209,3210')
     assert.equal(url.searchParams.get('maxPrice'), '0.0737')
     assert.equal(url.searchParams.get('action'), 'getNumberV2')
     return new Response('NO_NUMBERS')
   })
-  await assert.rejects(() => reserveQuotedNumber({ countryId: '12', serviceCode: 'go', providerId: '3209', providerPriceUsd: 0.067 }), (error) => error.definitive === true)
+  await assert.rejects(() => reserveQuotedNumber({ countryId: '12', serviceCode: 'go', providerId: '3209', providerIds: ['3209', '3210'], providerPriceUsd: 0.067 }), (error) => error.definitive === true)
   assert.equal(calls, 1)
 })
 

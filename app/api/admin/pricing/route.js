@@ -162,10 +162,7 @@ export async function PATCH(request) {
   const changes = { updatedAt: now, updatedBy: admin.email }
   if (hasPrices) changes.pricesKobo = pricesKobo
   if (hasBoostingAdjustment) changes.boostingAdjustmentPercent = boostingAdjustmentPercent
-  if (hasNumberMarkup) {
-    changes.numberMarkupPercent = numberMarkupPercent
-    changes.pricesKobo = Object.fromEntries(Object.entries(currentPricing.pricesKobo || {}).filter(([reference]) => !reference.startsWith('number:')))
-  }
+  if (hasNumberMarkup) changes.numberMarkupPercent = numberMarkupPercent
   await database.collection('storeSettings').updateOne(
     { _id: 'supplier-pricing' },
     { $set: changes },

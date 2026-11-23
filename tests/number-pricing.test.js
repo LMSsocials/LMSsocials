@@ -21,14 +21,15 @@ test('Admin percentages independently change every number tier', () => {
   assert.equal(numberSellingPriceKobo(supplierPriceUsd, '3', {}, pricing), 504000)
 })
 
-test('Legacy exact number prices and artificial floors no longer override normal pricing', () => {
+test('Exact number prices override percentage pricing for a selected service and tier', () => {
   const pricing = {
     numberMarkupPercent: { '1': 30, '2': 45, '3': 60 },
     pricesKobo: { 'number:175:wa:1': 1200000, 'number:175:wa:2': 1000000, 'number:175:wa:3': 1500000 },
   }
-  assert.equal(numberSellingPriceKobo(1, '1', { countryId: '175', serviceCode: 'wa' }, pricing), 182000)
-  assert.equal(numberSellingPriceKobo(1, '2', { countryId: '175', serviceCode: 'wa' }, pricing), 203000)
-  assert.equal(numberSellingPriceKobo(1, '3', { countryId: '175', serviceCode: 'wa' }, pricing), 224000)
+  assert.equal(numberSellingPriceKobo(1, '1', { countryId: '175', serviceCode: 'wa' }, pricing), 1200000)
+  assert.equal(numberSellingPriceKobo(1, '2', { countryId: '175', serviceCode: 'wa' }, pricing), 1000000)
+  assert.equal(numberSellingPriceKobo(1, '3', { countryId: '175', serviceCode: 'wa' }, pricing), 1500000)
+  assert.equal(numberSellingPriceKobo(1, '1', { countryId: '36', serviceCode: 'wa' }, pricing), 182000)
 })
 
 test('Invalid supplier prices and tiers are rejected', () => {
