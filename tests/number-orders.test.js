@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { MongoClient, ObjectId } from 'mongodb'
-import { chooseNumberSupplier, rankNumberSuppliers, parseNumberStatus, verifyNumberQuote, createNumberQuote, reserveQuotedNumber } from '../lib/number-provider.js'
+import { chooseNumberSupplier, rankNumberSuppliers, parseNumberStatus, verifyNumberQuote, createNumberQuote, reservationPriceLimitUsd, reserveQuotedNumber } from '../lib/number-provider.js'
 import { publicNumberOrder, syncNumberOrder } from '../lib/number-order-lifecycle.js'
 import { isNumberCountryEnabled, numberProviderForOffer } from '../lib/number-catalog.js'
 
@@ -46,7 +46,7 @@ test('WhatsApp Spain pins Budget, Silver, and Gold to the requested supplier pro
 })
 
 test('Silver prefers a Gold supplier over cheaper unranked inventory', () => {
-  const prices = { 1: { price: 0.01, count: 100 }, 2: { price: 0.2, count: 10 }, 3: { price: 0.15, count: 8 } }
+  const prices = { 1: { price: 0.01, count: 100 }, 2: { price: 0.2, count: 10 }, 3: { price: 0.15, count: 18 } }
   const goldPartners = { 2: {}, 3: {} }
   assert.equal(chooseNumberSupplier({ prices, goldPartners, serverId: '2' }).providerId, '3')
   assert.equal(chooseNumberSupplier({ prices, goldPartners, serverId: '1' }).providerId, '1')
@@ -63,6 +63,19 @@ test('A preferred supplier is selected when available and falls back when unavai
   const prices = { 3192: { price: 1, count: 100 }, 3193: { price: 1.735, count: 20 } }
   assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '1', providerId: '3193' }).providerId, '3193')
   assert.equal(chooseNumberSupplier({ prices: { 3192: prices[3192] }, goldPartners: {}, serverId: '1', providerId: '3193' }).providerId, '3192')
+})
+
+test('A thin stale-looking price row does not outrank dependable inventory', () => {
+  const prices = {
+    3182: { price: 0.307, count: 1 },
+    3160: { price: 1.808, count: 23331 },
+    2368: { price: 2.165, count: 94008 },
+  }
+  assert.equal(chooseNumberSupplier({ prices, goldPartners: {}, serverId: '1' }).providerId, '3160')
+})
+
+test('Reservation fallback price never exceeds the signed customer payment', () => {
+  assert.equal(reservationPriceLimitUsd({ providerPriceUsd: 1.808, sellingPriceKobo: 329056 }), 2.3504)
 })
 
 test('Supplier ranking keeps the handpicked product first and retains stock fallbacks', () => {
@@ -105,11 +118,11 @@ test('Reservation sends the handpicked supplier first with signed stock fallback
   t.mock.method(globalThis, 'fetch', async (url) => {
     calls++
     assert.equal(url.searchParams.get('providerIds'), '3209,3210')
-    assert.equal(url.searchParams.get('maxPrice'), '0.0737')
+    assert.equal(url.searchParams.get('maxPrice'), '0.08')
     assert.equal(url.searchParams.get('action'), 'getNumberV2')
     return new Response('NO_NUMBERS')
   })
-  await assert.rejects(() => reserveQuotedNumber({ countryId: '12', serviceCode: 'go', providerId: '3209', providerIds: ['3209', '3210'], providerPriceUsd: 0.067 }), (error) => error.definitive === true)
+  await assert.rejects(() => reserveQuotedNumber({ countryId: '12', serviceCode: 'go', providerId: '3209', providerIds: ['3209', '3210'], providerPriceUsd: 0.067, reservationMaxPriceUsd: 0.08 }), (error) => error.definitive === true)
   assert.equal(calls, 1)
 })
 
