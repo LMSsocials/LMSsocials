@@ -367,7 +367,7 @@ export default function Dashboard({ route, session, onSignOut, showWelcomeOffer 
           <h1>Order history</h1>
           <p>Review every purchase and follow its latest delivery status.</p>
         </header> : !activeService ? <><header className='dash-head'>
-          <div><h1>Merry Christmas, {firstName}.</h1><p>Your festive dashboard is ready. Choose a service and keep growing.</p></div>
+          <div><h1>Welcome back, {firstName}.</h1><p>Your dashboard is ready. Choose a service and keep growing.</p></div>
           <div className={'dash-head-stats ' + (balance >= 1000000 ? 'balance-expanded' : '')}>
             <div className='balance-stat'><div className='stat-label'><i><WalletCards /></i><small>Available balance</small></div><strong>{fullNaira(balance)}</strong><span>Ready to spend across every service</span><div className='wallet-actions'><button type='button' onClick={openFunding}><Plus /> Add Money</button><button type='button' onClick={openOrderHistory}><History /> History</button></div></div>
             <div className='order-stat'><div className='stat-label'><i><ReceiptText /></i><small>Orders</small></div><strong>{ordersState === 'loading' ? '—' : orders.length}</strong><span>All purchases</span></div>
